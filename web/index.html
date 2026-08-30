@@ -38,19 +38,10 @@
   <section class="panel">
     <h2>请求明细 <span class="sub2" id="detail-count"></span></h2>
     <div id="filters">
-      <select id="f-source">
-        <option value="">全部来源</option>
-        <option value="zcode">ZCode</option>
-        <option value="codex">Codex</option>
-      </select>
-      <select id="f-project"><option value="">全部项目</option></select>
-      <select id="f-model"><option value="">全部模型</option></select>
-      <select id="f-range">
-        <option value="all">全部时间</option>
-        <option value="today">今天</option>
-        <option value="7d">近 7 天</option>
-        <option value="month">本月</option>
-      </select>
+      <div class="select-host" id="f-source"></div>
+      <div class="select-host" id="f-project"></div>
+      <div class="select-host" id="f-model"></div>
+      <div class="select-host" id="f-range"></div>
       <input id="f-q" placeholder="搜索模型 / 项目 / Agent…">
     </div>
     <div class="table-wrap">
@@ -66,8 +57,8 @@
   </section>
 </main>
 
-<div id="mask" class="hidden"></div>
-<aside id="drawer" class="hidden">
+<div id="mask"></div>
+<aside id="drawer">
   <div class="drawer-head"><h2>设置</h2><button class="btn" id="btn-close-drawer">关闭</button></div>
   <div class="drawer-body">
     <h3>基本</h3>

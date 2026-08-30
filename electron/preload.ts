@@ -5,4 +5,7 @@ contextBridge.exposeInMainWorld('tokenuse', {
     ipcRenderer.on('snapshot', (_e, s) => cb(s))
   },
   hideFloating: () => ipcRenderer.send('hide-floating'),
+  openDashboard: () => ipcRenderer.send('open-dashboard'),
+  dragFloatingStart: () => ipcRenderer.send('floating-drag-start'),
+  dragFloatingEnd: () => ipcRenderer.send('floating-drag-end'),
 })

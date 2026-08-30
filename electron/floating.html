@@ -5,52 +5,91 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: transparent; overflow: hidden; user-select: none; }
-  body {
-    font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
-    display: flex; align-items: center; justify-content: flex-end; height: 100vh;
-  }
+  body { font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
   .pill {
-    -webkit-app-region: drag;
-    display: flex; align-items: center; gap: 8px;
+    cursor: default;
+    width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
     background: rgba(11, 18, 32, 0.82);
     border: 1px solid rgba(34, 211, 238, 0.35);
-    border-radius: 999px;
-    padding: 6px 10px 6px 14px;
+    border-radius: 10px;
+    padding: 0 8px 0 12px;
     color: #cbd5e1; font-size: 12px; line-height: 1;
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 16px rgba(0,0,0,.35);
     white-space: nowrap;
+    transition: border-color .15s;
   }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399; }
+  .pill:hover { border-color: rgba(34, 211, 238, 0.7); }
+  .pill.dragging { backdrop-filter: none; background: rgba(11, 18, 32, 0.92); }
+  .left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399; flex: none; }
   b { color: #22d3ee; font-weight: 600; }
   .cost { color: #fbbf24; font-weight: 600; }
   button {
-    -webkit-app-region: no-drag;
     background: none; border: none; color: #64748b; cursor: pointer;
     font-size: 12px; padding: 2px 4px; border-radius: 6px;
+    font-family: inherit; flex: none;
   }
   button:hover { color: #e2e8f0; background: rgba(148,163,184,.15); }
 </style>
 </head>
 <body>
-  <div class="pill">
-    <span class="dot"></span>
-    <span>今日 <b id="tok">…</b> tok</span>
-    <span class="cost" id="cost">¥—</span>
+  <div class="pill" id="pill" title="拖动移动 · 双击打开仪表盘">
+    <div class="left">
+      <span class="dot"></span>
+      <span>今日 <b id="tok">…</b> tok</span>
+      <span class="cost" id="cost">¥—</span>
+    </div>
     <button id="hide" title="隐藏悬浮条（托盘右键可重新打开）">✕</button>
   </div>
 <script>
   const fmt = n => n >= 1e8 ? (n / 1e8).toFixed(2) + '亿' : n >= 1e4 ? (n / 1e4).toFixed(1) + '万' : String(Math.round(n))
   const tok = document.getElementById('tok')
   const cost = document.getElementById('cost')
+  const pill = document.getElementById('pill')
+
   function render(s) {
     tok.textContent = fmt(s.tokens || 0)
     cost.textContent = s.cost == null ? '¥—' : '¥' + s.cost.toFixed(2) + (s.unknown ? '+' : '')
   }
-  if (window.tokenuse) {
-    window.tokenuse.onSnapshot(render)
-    document.getElementById('hide').addEventListener('click', () => window.tokenuse.hideFloating())
-  }
+
+  // 拖动由主进程绝对定位（每 16ms 读真实光标位置），这里只发开始/结束信号。
+  // 双击（两次抬起间隔 <350ms 且位移 ≤8px）打开仪表盘。
+  let lastUp = 0
+  let downX = 0, downY = 0
+
+  pill.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || e.target.closest('button')) return
+    downX = e.screenX
+    downY = e.screenY
+    pill.classList.add('dragging')
+    pill.setPointerCapture(e.pointerId)
+    window.tokenuse.dragFloatingStart()
+  })
+  pill.addEventListener('pointerup', e => {
+    if (e.target.closest('button')) return
+    pill.classList.remove('dragging')
+    window.tokenuse.dragFloatingEnd()
+    if (e.button !== 0) return
+    const moved = Math.abs(e.screenX - downX) + Math.abs(e.screenY - downY)
+    if (moved > 8) { lastUp = 0; return } // 是拖拽，不是点击
+    const now = Date.now()
+    if (now - lastUp < 350) {
+      lastUp = 0
+      window.tokenuse.openDashboard()
+    } else {
+      lastUp = now
+    }
+  })
+  pill.addEventListener('pointercancel', () => {
+    pill.classList.remove('dragging')
+    window.tokenuse.dragFloatingEnd()
+  })
+
+  document.getElementById('hide').addEventListener('click', () => window.tokenuse.hideFloating())
+
+  if (window.tokenuse) window.tokenuse.onSnapshot(render)
 </script>
 </body>
 </html>

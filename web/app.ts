@@ -60,6 +60,152 @@ function costLabel(c: number | null, unknown?: number): string {
   return c == null ? '—' : '¥' + c.toFixed(2) + (unknown ? '+' : '')
 }
 
+// ---------- 自绘下拉组件 ----------
+
+const CHEVRON = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+const CHECK = '<svg class="chk" width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6.5L4.8 9L10 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+
+interface SelectItem { value: string; label: string }
+interface SelectCfg { items: SelectItem[]; value: string; onChange: (v: string) => void }
+
+const liveSelects = new Set<CustomSelect>()
+
+class CustomSelect {
+  value: string
+  readonly el: HTMLElement
+  private items: SelectItem[]
+  private openState = false
+  private activeIndex = -1
+  private menu: HTMLElement
+  private label: HTMLElement
+
+  constructor(private host: HTMLElement, private cfg: SelectCfg, private placeholder: string) {
+    this.value = cfg.value
+    this.items = cfg.items
+    const el = document.createElement('div')
+    el.className = 'cselect'
+    el.innerHTML = `<button type="button" class="cselect-trigger"><span class="cselect-label"></span><span class="cselect-arrow">${CHEVRON}</span></button><div class="cselect-menu"></div>`
+    this.el = el
+    this.menu = el.querySelector('.cselect-menu') as HTMLElement
+    this.label = el.querySelector('.cselect-label') as HTMLElement
+    ;(el.querySelector('.cselect-trigger') as HTMLElement).addEventListener('click', e => {
+      e.stopPropagation()
+      this.toggle()
+    })
+    this.menu.addEventListener('click', e => {
+      e.stopPropagation()
+      const item = (e.target as HTMLElement).closest('.cselect-item') as HTMLElement | null
+      if (item) this.pick(item.dataset.v ?? '')
+    })
+    el.addEventListener('keydown', e => this.onKey(e))
+    host.appendChild(el)
+    liveSelects.add(this)
+    this.renderMenu()
+    this.renderLabel()
+  }
+
+  get isOpen() {
+    return this.openState
+  }
+
+  toggle() {
+    this.openState ? this.close() : this.openMenu()
+  }
+
+  openMenu() {
+    for (const s of liveSelects) if (s !== this) s.close()
+    this.openState = true
+    this.el.classList.add('open')
+    const r = this.el.getBoundingClientRect()
+    const menuH = Math.min(272, this.items.length * 30 + 12)
+    this.el.classList.toggle('up', r.bottom + menuH + 10 > window.innerHeight && r.top - menuH - 10 > 0)
+    this.activeIndex = Math.max(0, this.items.findIndex(i => i.value === this.value))
+    this.paintActive()
+  }
+
+  close() {
+    if (!this.openState) return
+    this.openState = false
+    this.el.classList.remove('open')
+  }
+
+  // 选项变化时重建菜单；当前值不在新选项里则回落到第一项（占位项）
+  update(items: SelectItem[], value?: string) {
+    const sig = items.map(i => i.value).join('\u0001')
+    const changed = sig !== this.items.map(i => i.value).join('\u0001')
+    if (changed) this.items = items
+    if (value !== undefined) this.value = value
+    if (!this.items.some(i => i.value === this.value)) this.value = this.items[0]?.value ?? ''
+    if (changed) {
+      this.renderMenu()
+      this.activeIndex = Math.max(0, this.items.findIndex(i => i.value === this.value))
+      if (this.openState) this.paintActive()
+    }
+    this.renderLabel()
+  }
+
+  private pick(v: string) {
+    if (v !== this.value) {
+      this.value = v
+      this.renderLabel()
+      this.renderMenu()
+      this.cfg.onChange(v)
+    }
+    this.close()
+  }
+
+  private renderLabel() {
+    const cur = this.items.find(i => i.value === this.value)
+    this.label.textContent = cur ? cur.label : this.placeholder
+    this.label.classList.toggle('ph', !cur)
+  }
+
+  private renderMenu() {
+    this.menu.innerHTML = this.items
+      .map(i => `<div class="cselect-item${i.value === this.value ? ' selected' : ''}" data-v="${esc(i.value)}"><span class="lbl">${esc(i.label)}</span>${CHECK}</div>`)
+      .join('')
+  }
+
+  private paintActive() {
+    const nodes = this.menu.querySelectorAll('.cselect-item')
+    nodes.forEach((n, i) => n.classList.toggle('active', i === this.activeIndex))
+  }
+
+  private moveActive(d: number) {
+    if (!this.items.length) return
+    this.activeIndex = (this.activeIndex + d + this.items.length) % this.items.length
+    this.paintActive()
+    const n = this.menu.querySelectorAll('.cselect-item')[this.activeIndex] as HTMLElement | undefined
+    n?.scrollIntoView({ block: 'nearest' })
+  }
+
+  private onKey(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      if (!this.openState) this.openMenu()
+      else {
+        const it = this.items[this.activeIndex]
+        if (it) this.pick(it.value)
+      }
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (this.openState) this.moveActive(1)
+      else this.openMenu()
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (this.openState) this.moveActive(-1)
+      else this.openMenu()
+      return
+    }
+    if (e.key === 'Escape') this.close()
+    if (e.key === 'Tab') this.close()
+  }
+}
+
 // ---------- 渲染 ----------
 
 function renderCards() {
@@ -102,7 +248,7 @@ function renderSpark() {
       data: tl.map(p => p.tokens),
       itemStyle: { color: '#22d3ee', opacity: 0.85, borderRadius: [2, 2, 0, 0] },
       barCategoryGap: '25%',
-      animation: false,
+      animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
     }],
   })
 }
@@ -131,12 +277,12 @@ function renderDaily() {
       {
         name: 'tokens', type: 'bar', data: dl.map(p => p.tokens),
         itemStyle: { color: '#38bdf8', opacity: 0.8, borderRadius: [2, 2, 0, 0] },
-        barCategoryGap: '30%', animation: false,
+        barCategoryGap: '30%', animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
       },
       {
         name: '成本', type: 'line', yAxisIndex: 1, data: dl.map(p => p.cost),
         itemStyle: { color: '#fbbf24' }, lineStyle: { color: '#fbbf24', width: 2 },
-        symbolSize: 3, connectNulls: true, animation: false,
+        symbolSize: 3, connectNulls: true, animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
       },
     ],
   })
@@ -169,7 +315,7 @@ function renderPie() {
       data,
       label: { color: '#94a3b8', fontSize: 10, formatter: '{d}%' },
       itemStyle: { borderColor: '#111a2c', borderWidth: 1 },
-      animation: false,
+      animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
     }],
   })
 }
@@ -205,7 +351,7 @@ function renderProj() {
       data: bp.map(b => b.tokens),
       itemStyle: { color: '#34d399', opacity: 0.85, borderRadius: [0, 3, 3, 0] },
       barMaxWidth: 14,
-      animation: false,
+      animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
     }],
   })
 }
@@ -276,15 +422,45 @@ function renderTable() {
     `共 ${list.length} 条` + (list.length > 500 ? '（显示前 500 条，明细缓存上限 2000 条）' : '')
 }
 
+const filterSel: Partial<Record<'source' | 'project' | 'model' | 'range', CustomSelect>> = {}
+
+function buildFilters() {
+  filterSel.source = new CustomSelect(
+    $('f-source'),
+    { items: [{ value: '', label: '全部来源' }, { value: 'zcode', label: 'ZCode' }, { value: 'codex', label: 'Codex' }], value: '', onChange: v => { filters.source = v; renderTable() } },
+    '全部来源',
+  )
+  filterSel.range = new CustomSelect(
+    $('f-range'),
+    { items: [{ value: 'all', label: '全部时间' }, { value: 'today', label: '今天' }, { value: '7d', label: '近 7 天' }, { value: 'month', label: '本月' }], value: 'all', onChange: v => { filters.range = v; renderTable() } },
+    '全部时间',
+  )
+  filterSel.project = new CustomSelect(
+    $('f-project'),
+    { items: [{ value: '', label: '全部项目' }], value: '', onChange: v => { filters.project = v; renderTable() } },
+    '全部项目',
+  )
+  filterSel.model = new CustomSelect(
+    $('f-model'),
+    { items: [{ value: '', label: '全部模型' }], value: '', onChange: v => { filters.model = v; renderTable() } },
+    '全部模型',
+  )
+}
+
+let projKey = ''
+let modelKey = ''
+
 function populateFilters() {
-  const fill = (sel: HTMLSelectElement, values: string[], labeler: (v: string) => string) => {
-    const cur = sel.value
-    sel.innerHTML =
-      `<option value="">${sel.id === 'f-project' ? '全部项目' : '全部模型'}</option>` +
-      values.map(v => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(labeler(v))}</option>`).join('')
+  const pk = snap!.projects.join('\u0001')
+  if (pk !== projKey) {
+    projKey = pk
+    filterSel.project!.update([{ value: '', label: '全部项目' }, ...snap!.projects.map(p => ({ value: p, label: shortPath(p) }))])
   }
-  fill($('f-project') as HTMLSelectElement, snap!.projects, shortPath)
-  fill($('f-model') as HTMLSelectElement, snap!.models, v => v)
+  const mk = snap!.models.join('\u0001')
+  if (mk !== modelKey) {
+    modelKey = mk
+    filterSel.model!.update([{ value: '', label: '全部模型' }, ...snap!.models.map(m => ({ value: m, label: m }))])
+  }
 }
 
 function renderUpdated() {
@@ -343,50 +519,71 @@ function post(url: string, body: unknown) {
 }
 
 async function openDrawer() {
-  $('drawer').classList.remove('hidden')
-  $('mask').classList.remove('hidden')
+  $('drawer').classList.add('open')
+  $('mask').classList.add('open')
   const st = (await (await fetch('/api/settings')).json()) as { pollIntervalSec: number; usdCny: number; providers: Record<string, string>; defaultBilling: string }
   ;($('s-interval') as HTMLInputElement).value = String(st.pollIntervalSec)
   ;($('s-usd') as HTMLInputElement).value = String(st.usdCny)
+  providerPending = { ...st.providers }
   renderProviderRows(st.providers, st.defaultBilling as 'metered' | 'plan')
   await loadPrices()
 }
 
 function closeDrawer() {
-  $('drawer').classList.add('hidden')
-  $('mask').classList.add('hidden')
+  $('drawer').classList.remove('open')
+  $('mask').classList.remove('open')
 }
+
+let providerPending: Record<string, string> = {}
 
 function renderProviderRows(providers: Record<string, string>, defaultBilling: 'metered' | 'plan') {
   const ids = new Set<string>([...(snap?.providers.map(p => p.id) ?? []), ...Object.keys(providers)])
-  $('provider-rows').innerHTML =
+  const host = $('provider-rows')
+  host.innerHTML =
     [...ids]
       .sort()
-      .map(id => {
-        const val = providers[id] ?? defaultBilling
-        return `<div class="row"><code title="${esc(id)}">${esc(id)}</code>
-          <select data-id="${esc(id)}">
-            <option value="metered"${val === 'metered' ? ' selected' : ''}>按量计费</option>
-            <option value="plan"${val === 'plan' ? ' selected' : ''}>套餐内</option>
-          </select></div>`
-      })
+      .map(id => `<div class="row"><code title="${esc(id)}">${esc(id)}</code><div class="sel-host" data-id="${esc(id)}"></div></div>`)
       .join('') || '<div class="empty">暂无数据</div>'
+  host.querySelectorAll('.sel-host').forEach(h => {
+    const id = (h as HTMLElement).dataset.id ?? ''
+    new CustomSelect(
+      h as HTMLElement,
+      {
+        items: [{ value: 'metered', label: '按量计费' }, { value: 'plan', label: '套餐内' }],
+        value: providerPending[id] ?? defaultBilling,
+        onChange: v => { providerPending[id] = v },
+      },
+      '计费方式',
+    )
+  })
 }
 
 let remoteCount = 0
 
 function priceRowHtml(k: string, v: Price): string {
-  return `<div class="row price" data-k="${esc(k)}">
+  return `<div class="row price" data-k="${esc(k)}" data-cur="${v.currency === 'USD' ? 'USD' : 'CNY'}">
     <input class="pk" value="${esc(k)}" placeholder="模型 ID" title="模型 ID（小写匹配）">
     <input class="pi" type="number" step="any" value="${v.input}" title="输入价 / 1M tok">
     <input class="po" type="number" step="any" value="${v.output}" title="输出价 / 1M tok">
     <input class="pc" type="number" step="any" value="${v.cacheRead ?? ''}" title="缓存读价（可空）">
-    <select class="pu">
-      <option value="CNY"${v.currency === 'CNY' ? ' selected' : ''}>CNY</option>
-      <option value="USD"${v.currency === 'USD' ? ' selected' : ''}>USD</option>
-    </select>
+    <div class="sel-host cur"></div>
     <button class="del" title="删除">✕</button>
   </div>`
+}
+
+function mountCurrencySelect(host: HTMLElement, cur: string) {
+  new CustomSelect(
+    host,
+    {
+      items: [{ value: 'CNY', label: 'CNY' }, { value: 'USD', label: 'USD' }],
+      value: cur,
+      onChange: v => {
+        const row = host.closest('.row.price') as HTMLElement | null
+        if (row) row.dataset.cur = v
+      },
+    },
+    'CNY',
+  )
 }
 
 function renderPriceRows(overrides: Record<string, Price>) {
@@ -394,6 +591,10 @@ function renderPriceRows(overrides: Record<string, Price>) {
   $('price-rows').innerHTML =
     entries.map(([k, v]) => priceRowHtml(k, v)).join('') ||
     '<div class="empty">暂无覆盖价格 — 点「添加模型」新增</div>'
+  $('price-rows').querySelectorAll('.row.price').forEach(row => {
+    const host = row.querySelector('.sel-host.cur') as HTMLElement | null
+    if (host) mountCurrencySelect(host, (row as HTMLElement).dataset.cur ?? 'CNY')
+  })
 }
 
 async function loadPrices() {
@@ -417,7 +618,7 @@ function collectPrices(): Record<string, Price> {
       input,
       output,
       ...(Number.isFinite(cr) ? { cacheRead: cr } : {}),
-      currency: (el('.pu') as HTMLSelectElement).value === 'USD' ? 'USD' : 'CNY',
+      currency: (row as HTMLElement).dataset.cur === 'USD' ? 'USD' : 'CNY',
     }
   })
   return out
@@ -437,26 +638,20 @@ function initCharts() {
 }
 
 function bindEvents() {
+  document.addEventListener('click', () => {
+    for (const s of [...liveSelects]) {
+      if (!s.el.isConnected) {
+        liveSelects.delete(s)
+        continue
+      }
+      if (s.isOpen) s.close()
+    }
+  })
+  buildFilters()
   $('btn-settings').addEventListener('click', () => void openDrawer())
   $('btn-close-drawer').addEventListener('click', closeDrawer)
   $('mask').addEventListener('click', closeDrawer)
 
-  ;($('f-source') as HTMLSelectElement).addEventListener('change', e => {
-    filters.source = (e.target as HTMLSelectElement).value
-    renderTable()
-  })
-  ;($('f-project') as HTMLSelectElement).addEventListener('change', e => {
-    filters.project = (e.target as HTMLSelectElement).value
-    renderTable()
-  })
-  ;($('f-model') as HTMLSelectElement).addEventListener('change', e => {
-    filters.model = (e.target as HTMLSelectElement).value
-    renderTable()
-  })
-  ;($('f-range') as HTMLSelectElement).addEventListener('change', e => {
-    filters.range = (e.target as HTMLSelectElement).value
-    renderTable()
-  })
   let qTimer = 0
   ;($('f-q') as HTMLInputElement).addEventListener('input', e => {
     filters.q = (e.target as HTMLInputElement).value
@@ -473,12 +668,7 @@ function bindEvents() {
   })
 
   $('p-save').addEventListener('click', async () => {
-    const prov: Record<string, string> = {}
-    document.querySelectorAll('#provider-rows select').forEach(s => {
-      const sel = s as HTMLSelectElement
-      if (sel.dataset.id) prov[sel.dataset.id] = sel.value
-    })
-    await post('/api/settings', { providers: prov })
+    await post('/api/settings', { providers: providerPending })
     flash('p-save', '已保存 ✓', '保存计费方式')
   })
 
@@ -489,12 +679,18 @@ function bindEvents() {
     )
     const rows = $('price-rows').querySelectorAll('.row.price')
     const last = rows[rows.length - 1] as HTMLElement
+    const curHost = last.querySelector('.sel-host.cur') as HTMLElement | null
+    if (curHost) mountCurrencySelect(curHost, 'CNY')
     ;(last.querySelector('.pk') as HTMLInputElement).focus()
   })
 
   $('price-rows').addEventListener('click', e => {
     const t = e.target as HTMLElement
-    if (t.classList.contains('del')) t.closest('.row.price')?.remove()
+    if (!t.classList.contains('del')) return
+    const row = t.closest('.row.price') as HTMLElement | null
+    if (!row) return
+    row.classList.add('removing')
+    setTimeout(() => row.remove(), 170)
   })
 
   $('price-save').addEventListener('click', async () => {
