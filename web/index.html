@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TokenUse · Token 消耗监测</title>
+<link rel="icon" href="/icon.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><img src="/icon.png" alt=""><span>TokenUse</span><span class="tag">实时 Token 监测</span></div>
+  <div class="hstatus"><span class="dot" id="dot"></span><span id="updated">连接中…</span></div>
+  <button class="btn" id="btn-settings">设置</button>
+</header>
+<main>
+  <section id="cards">
+    <div class="card"><div class="label">今日 Tokens</div><div class="value" id="c-today-tok">—</div><div class="sub" id="c-today-sub">—</div></div>
+    <div class="card"><div class="label">今日成本（等效）</div><div class="value amber" id="c-today-cost">—</div><div class="sub" id="c-today-cost-sub">—</div></div>
+    <div class="card"><div class="label">本月成本（等效）</div><div class="value amber" id="c-month-cost">—</div><div class="sub" id="c-month-sub">—</div></div>
+    <div class="card"><div class="label">今日请求</div><div class="value" id="c-req">—</div><div class="sub" id="c-src">—</div></div>
+  </section>
+
+  <section class="panel">
+    <h2>实时活动 <span class="sub2">最近 60 分钟 · 每分钟 tokens</span></h2>
+    <div class="live-grid">
+      <div id="spark" class="chart chart-sm"></div>
+      <div id="recent" class="recent"></div>
+    </div>
+  </section>
+
+  <section class="charts-row">
+    <div class="panel"><h2>每日趋势（30 天）</h2><div id="daily" class="chart"></div></div>
+    <div class="panel"><h2>模型占比（本月）</h2><div id="pie" class="chart"></div></div>
+    <div class="panel"><h2>项目消耗（本月）</h2><div id="proj" class="chart"></div></div>
+  </section>
+
+  <section class="panel">
+    <h2>请求明细 <span class="sub2" id="detail-count"></span></h2>
+    <div id="filters">
+      <select id="f-source">
+        <option value="">全部来源</option>
+        <option value="zcode">ZCode</option>
+        <option value="codex">Codex</option>
+      </select>
+      <select id="f-project"><option value="">全部项目</option></select>
+      <select id="f-model"><option value="">全部模型</option></select>
+      <select id="f-range">
+        <option value="all">全部时间</option>
+        <option value="today">今天</option>
+        <option value="7d">近 7 天</option>
+        <option value="month">本月</option>
+      </select>
+      <input id="f-q" placeholder="搜索模型 / 项目 / Agent…">
+    </div>
+    <div class="table-wrap">
+      <table id="detail">
+        <thead><tr>
+          <th>时间</th><th>项目</th><th>来源</th><th>模型</th><th>Agent</th>
+          <th class="num">输入</th><th class="num">输出</th><th class="num">推理</th>
+          <th class="num">缓存读</th><th class="num">缓存写</th><th class="num">合计</th><th class="num">成本</th>
+        </tr></thead>
+        <tbody id="detail-body"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<div id="mask" class="hidden"></div>
+<aside id="drawer" class="hidden">
+  <div class="drawer-head"><h2>设置</h2><button class="btn" id="btn-close-drawer">关闭</button></div>
+  <div class="drawer-body">
+    <h3>基本</h3>
+    <div class="form-row"><label>轮询间隔（秒）</label><input type="number" id="s-interval" min="1" max="600"></div>
+    <div class="form-row"><label>美元 → 人民币汇率</label><input type="number" id="s-usd" step="0.01" min="0.1"></div>
+    <div class="hint">改端口请编辑 data/settings.json 并重启应用。</div>
+    <button class="btn primary" id="s-save">保存设置</button>
+
+    <h3>Provider 计费方式</h3>
+    <div id="provider-rows" class="rows"></div>
+    <div class="hint">「套餐内」按价格表显示等效成本并单独标注；「按量」直接按价格表计费。</div>
+    <button class="btn primary" id="p-save">保存计费方式</button>
+
+    <h3>价格表（每 1M token）</h3>
+    <div class="price-head"><span>模型 ID</span><span>输入</span><span>输出</span><span>缓存读</span><span>币种</span><span></span></div>
+    <div id="price-rows" class="rows"></div>
+    <div class="btn-line">
+      <button class="btn" id="price-add">＋ 添加模型</button>
+      <button class="btn primary" id="price-save">保存价格表</button>
+    </div>
+
+    <h3>远程价格</h3>
+    <div class="form-row"><button class="btn" id="remote-btn">从 LiteLLM 价格库更新</button></div>
+    <div class="hint" id="remote-status"></div>
+  </div>
+</aside>
+
+<script src="/app.js"></script>
+</body>
+</html>

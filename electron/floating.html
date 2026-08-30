@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: transparent; overflow: hidden; user-select: none; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: flex-end; height: 100vh;
+  }
+  .pill {
+    -webkit-app-region: drag;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(11, 18, 32, 0.82);
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    border-radius: 999px;
+    padding: 6px 10px 6px 14px;
+    color: #cbd5e1; font-size: 12px; line-height: 1;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(0,0,0,.35);
+    white-space: nowrap;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399; }
+  b { color: #22d3ee; font-weight: 600; }
+  .cost { color: #fbbf24; font-weight: 600; }
+  button {
+    -webkit-app-region: no-drag;
+    background: none; border: none; color: #64748b; cursor: pointer;
+    font-size: 12px; padding: 2px 4px; border-radius: 6px;
+  }
+  button:hover { color: #e2e8f0; background: rgba(148,163,184,.15); }
+</style>
+</head>
+<body>
+  <div class="pill">
+    <span class="dot"></span>
+    <span>今日 <b id="tok">…</b> tok</span>
+    <span class="cost" id="cost">¥—</span>
+    <button id="hide" title="隐藏悬浮条（托盘右键可重新打开）">✕</button>
+  </div>
+<script>
+  const fmt = n => n >= 1e8 ? (n / 1e8).toFixed(2) + '亿' : n >= 1e4 ? (n / 1e4).toFixed(1) + '万' : String(Math.round(n))
+  const tok = document.getElementById('tok')
+  const cost = document.getElementById('cost')
+  function render(s) {
+    tok.textContent = fmt(s.tokens || 0)
+    cost.textContent = s.cost == null ? '¥—' : '¥' + s.cost.toFixed(2) + (s.unknown ? '+' : '')
+  }
+  if (window.tokenuse) {
+    window.tokenuse.onSnapshot(render)
+    document.getElementById('hide').addEventListener('click', () => window.tokenuse.hideFloating())
+  }
+</script>
+</body>
+</html>
