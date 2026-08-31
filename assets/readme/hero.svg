@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="300" viewBox="0 0 1200 300"
+     role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">TokenUse — 实时监测 ZCode / Codex CLI 的 token 消耗与等效金额</title>
+  <desc id="hero-desc">TokenUse 标题横幅：项目名、一句话价值（把 AI 编程工具烧掉的 token 和等效金额实时摊在桌面上），右侧为产品图标中的青色仪表环。</desc>
+
+  <defs>
+    <radialGradient id="glow-cyan" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity=".10"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow-green" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#34d399" stop-opacity=".07"/>
+      <stop offset="100%" stop-color="#34d399" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gauge-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#67e8f9"/>
+      <stop offset="100%" stop-color="#0e7490"/>
+    </linearGradient>
+    <clipPath id="gauge-disc">
+      <circle cx="0" cy="0" r="46"/>
+    </clipPath>
+  </defs>
+
+  <!-- 画布底色：自带深色背景，浅色主题页面同样可读 -->
+  <rect width="1200" height="300" rx="26" fill="#0b1220"/>
+  <circle cx="1020" cy="30" r="330" fill="url(#glow-cyan)"/>
+  <circle cx="120" cy="-20" r="300" fill="url(#glow-green)"/>
+
+  <!-- 左侧标题块 -->
+  <g id="title-block" transform="translate(64 0)">
+    <!-- 状态行：LIVE + 数据源（与仪表盘页眉一致） -->
+    <g transform="translate(0 82)">
+      <circle cx="6" cy="0" r="6" fill="#34d399"/>
+      <circle cx="6" cy="0" r="11" fill="none" stroke="#34d399" stroke-width="1.5" opacity=".35"/>
+      <text x="26" y="6" font-family="Consolas, ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="18" fill="#94a3b8" letter-spacing="2">LIVE — ZCode ✓ · Codex ✓</text>
+    </g>
+
+    <!-- 项目名 -->
+    <text x="-2" y="160" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
+          font-size="78" font-weight="800" letter-spacing="-1">
+      <tspan fill="#f1f5f9">Token</tspan><tspan fill="#22d3ee">Use</tspan>
+    </text>
+
+    <!-- 一句话价值 -->
+    <text x="0" y="204" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
+          font-size="22" fill="#cbd5e1">把 ZCode / Codex 烧掉的 token 和等效金额，实时摊在你的桌面上</text>
+
+    <!-- 元信息 chips -->
+    <g transform="translate(0 236)" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" font-size="16" fill="#94a3b8">
+      <rect x="0" y="0" width="123" height="30" rx="15" fill="#111a2c" stroke="#1e2a44"/>
+      <text x="61.5" y="20" text-anchor="middle">Windows 10+</text>
+      <rect x="135" y="0" width="98" height="30" rx="15" fill="#111a2c" stroke="#1e2a44"/>
+      <text x="184" y="20" text-anchor="middle">Electron</text>
+      <rect x="245" y="0" width="124" height="30" rx="15" fill="#111a2c" stroke="#1e2a44"/>
+      <text x="307" y="20" text-anchor="middle" fill="#34d399">数据不出本机</text>
+      <rect x="381" y="0" width="196" height="30" rx="15" fill="#111a2c" stroke="#1e2a44"/>
+      <text x="479" y="20" text-anchor="middle">托盘 · 悬浮条 · 仪表盘</text>
+    </g>
+  </g>
+
+  <!-- 右侧仪表环：应用图标母题 -->
+  <g id="gauge-motif" transform="translate(1010 150)">
+    <circle cx="0" cy="0" r="80" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity=".18"/>
+    <circle cx="0" cy="0" r="96" fill="none" stroke="#22d3ee" stroke-width="1" opacity=".08"/>
+    <rect x="-95" y="-95" width="190" height="190" rx="44" fill="#0d1526" stroke="#1e2a44"/>
+    <circle cx="0" cy="0" r="60" fill="#0a0f1a" stroke="#22d3ee" stroke-width="13"/>
+    <g clip-path="url(#gauge-disc)">
+      <rect x="-46" y="4" width="92" height="42" fill="url(#gauge-fill)"/>
+    </g>
+    <rect x="-24" y="-24" width="48" height="13" rx="2.5" fill="#f1f5f9"/>
+  </g>
+</svg>
