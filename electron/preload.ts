@@ -8,4 +8,6 @@ contextBridge.exposeInMainWorld('tokenuse', {
   openDashboard: () => ipcRenderer.send('open-dashboard'),
   dragFloatingStart: () => ipcRenderer.send('floating-drag-start'),
   dragFloatingEnd: () => ipcRenderer.send('floating-drag-end'),
+  resizeFloatingStart: (edge: string) => ipcRenderer.send('floating-resize-start', edge),
+  resizeFloatingEnd: () => ipcRenderer.send('floating-resize-end'),
 })

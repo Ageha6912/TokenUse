@@ -27,6 +27,8 @@ export interface Settings {
   defaultBilling: Billing
   providers: Record<string, Billing>
   floatingBar: boolean
+  floatingW: number // 悬浮条宽度（自由缩放后记忆）
+  floatingH: number // 悬浮条高度
   autostart: boolean
 }
 
@@ -40,6 +42,8 @@ export const DEFAULT_SETTINGS: Settings = {
     'builtin:zai': 'metered',
   },
   floatingBar: true,
+  floatingW: 320,
+  floatingH: 36,
   autostart: false,
 }
 

@@ -6,15 +6,16 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: transparent; overflow: hidden; user-select: none; }
   body { font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
+  /* 尺寸由 --s（高度/36）驱动：缩放窗口时内容等比变大变小 */
   .pill {
     cursor: default;
     width: 100vw; height: 100vh;
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    display: flex; align-items: center; justify-content: space-between; gap: calc(8px * var(--s, 1));
     background: rgba(11, 18, 32, 0.82);
     border: 1px solid rgba(34, 211, 238, 0.35);
-    border-radius: 10px;
-    padding: 0 8px 0 12px;
-    color: #cbd5e1; font-size: 12px; line-height: 1;
+    border-radius: calc(10px * var(--s, 1));
+    padding: 0 calc(8px * var(--s, 1)) 0 calc(12px * var(--s, 1));
+    color: #cbd5e1; font-size: calc(12px * var(--s, 1)); line-height: 1;
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 16px rgba(0,0,0,.35);
     white-space: nowrap;
@@ -22,20 +23,22 @@
   }
   .pill:hover { border-color: rgba(34, 211, 238, 0.7); }
   .pill.dragging { backdrop-filter: none; background: rgba(11, 18, 32, 0.92); }
-  .left { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399; flex: none; }
+  .left { display: flex; align-items: center; gap: calc(8px * var(--s, 1)); min-width: 0; }
+  .dot { width: calc(7px * var(--s, 1)); height: calc(7px * var(--s, 1)); border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399; flex: none; }
   b { color: #22d3ee; font-weight: 600; }
   .cost { color: #fbbf24; font-weight: 600; }
   button {
     background: none; border: none; color: #64748b; cursor: pointer;
-    font-size: 12px; padding: 2px 4px; border-radius: 6px;
+    font-size: calc(12px * var(--s, 1));
+    padding: calc(2px * var(--s, 1)) calc(4px * var(--s, 1));
+    border-radius: calc(6px * var(--s, 1));
     font-family: inherit; flex: none;
   }
   button:hover { color: #e2e8f0; background: rgba(148,163,184,.15); }
 </style>
 </head>
 <body>
-  <div class="pill" id="pill" title="拖动移动 · 双击打开仪表盘">
+  <div class="pill" id="pill" title="拖动移动 · 边缘/角落可缩放 · 双击打开仪表盘">
     <div class="left">
       <span class="dot"></span>
       <span>今日 <b id="tok">…</b> tok</span>
@@ -54,22 +57,73 @@
     cost.textContent = s.cost == null ? '¥—' : '¥' + s.cost.toFixed(2) + (s.unknown ? '+' : '')
   }
 
-  // 拖动由主进程绝对定位（每 16ms 读真实光标位置），这里只发开始/结束信号。
-  // 双击（两次抬起间隔 <350ms 且位移 ≤8px）打开仪表盘。
+  // 拖动/缩放均由主进程绝对定位（每 16ms 读真实光标位置），这里只发开始/结束信号。
+  // 拖动：按住中间区域；缩放：按住四边/四角 6px 热区；双击（两次抬起间隔 <350ms 且位移 ≤8px）打开仪表盘。
   let lastUp = 0
   let downX = 0, downY = 0
+  let mode = 'idle' // idle | drag | resize
+
+  const BASE_H = 36
+  function applyScale() {
+    const s = Math.max(0.4, window.innerHeight / BASE_H)
+    pill.style.setProperty('--s', s.toFixed(4))
+  }
+  window.addEventListener('resize', applyScale)
+  applyScale()
+
+  const BAND = 6
+  const RESIZE_CURSORS = {
+    n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize',
+    ne: 'nesw-resize', sw: 'nesw-resize', nw: 'nwse-resize', se: 'nwse-resize',
+  }
+  function edgeFor(x, y) {
+    const w = window.innerWidth, h = window.innerHeight
+    const west = x <= BAND, east = x >= w - BAND
+    const north = y <= BAND, south = y >= h - BAND
+    if (north && east) return 'ne'
+    if (north && west) return 'nw'
+    if (south && east) return 'se'
+    if (south && west) return 'sw'
+    if (north) return 'n'
+    if (south) return 's'
+    if (east) return 'e'
+    if (west) return 'w'
+    return null
+  }
+
+  pill.addEventListener('pointermove', e => {
+    if (mode !== 'idle') return
+    const edge = e.target.closest('button') ? null : edgeFor(e.clientX, e.clientY)
+    pill.style.cursor = edge ? RESIZE_CURSORS[edge] : ''
+  })
 
   pill.addEventListener('pointerdown', e => {
     if (e.button !== 0 || e.target.closest('button')) return
     downX = e.screenX
     downY = e.screenY
-    pill.classList.add('dragging')
     pill.setPointerCapture(e.pointerId)
-    window.tokenuse.dragFloatingStart()
+    pill.classList.add('dragging')
+    const edge = edgeFor(e.clientX, e.clientY)
+    if (edge) {
+      mode = 'resize'
+      window.tokenuse.resizeFloatingStart(edge)
+    } else {
+      mode = 'drag'
+      window.tokenuse.dragFloatingStart()
+    }
   })
   pill.addEventListener('pointerup', e => {
     if (e.target.closest('button')) return
+    const wasDrag = mode === 'drag'
+    const wasResize = mode === 'resize'
+    mode = 'idle'
     pill.classList.remove('dragging')
+    pill.style.cursor = ''
+    if (wasResize) {
+      window.tokenuse.resizeFloatingEnd()
+      return
+    }
+    if (!wasDrag) return
     window.tokenuse.dragFloatingEnd()
     if (e.button !== 0) return
     const moved = Math.abs(e.screenX - downX) + Math.abs(e.screenY - downY)
@@ -83,8 +137,11 @@
     }
   })
   pill.addEventListener('pointercancel', () => {
+    if (mode === 'resize') window.tokenuse.resizeFloatingEnd()
+    else if (mode === 'drag') window.tokenuse.dragFloatingEnd()
+    mode = 'idle'
     pill.classList.remove('dragging')
-    window.tokenuse.dragFloatingEnd()
+    pill.style.cursor = ''
   })
 
   document.getElementById('hide').addEventListener('click', () => window.tokenuse.hideFloating())

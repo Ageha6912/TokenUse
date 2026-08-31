@@ -3,3 +3,5 @@ dist/
 web/app.js
 data/
 *.log
+release/
+release2/

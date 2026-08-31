@@ -224,6 +224,8 @@ function applySettings(store: Store, dataDir: string, cur: Settings, patch: Part
   s.providers = pb
   s.defaultBilling = s.defaultBilling === 'plan' ? 'plan' : 'metered'
   s.floatingBar = !!s.floatingBar
+  s.floatingW = Math.round(Math.min(2000, Math.max(140, Number(s.floatingW) || 320)))
+  s.floatingH = Math.round(Math.min(200, Math.max(20, Number(s.floatingH) || 36)))
   s.autostart = !!s.autostart
   store.settings = s
   saveSettings(dataDir, s)

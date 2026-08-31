@@ -3,6 +3,15 @@
 实时监测 AI 编程工具（ZCode / Codex CLI）token 消耗与等效金额的本机工具。
 数据全程留在本机，不经过任何第三方。
 
+## 下载安装
+
+从 [Releases](https://github.com/Ageha6912/TokenUse/releases) 下载：
+
+- `TokenUse-Setup-*.exe` —— 安装版，装完自动启动，含开始菜单快捷方式
+- `TokenUse-*.exe`（portable）—— 便携版，单文件直接运行
+
+首次运行如遇 SmartScreen 提示，点「更多信息 → 仍要运行」。需要本机装有 ZCode 或 Codex CLI 才有数据可看；金额基于内置参考价格表，请按真实账单在设置中核价。
+
 ## 快速开始
 
 ```bash

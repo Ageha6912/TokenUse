@@ -5,22 +5,43 @@
   "private": true,
   "description": "实时监测 AI 编程工具的 token 消耗",
   "main": "dist/electron/main.js",
+  "author": "Ageha6912",
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "server": "node dist/server/cli.js",
     "app": "electron .",
-    "start": "npm run build && electron ."
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win"
   },
-  "dependencies": {
-    "echarts": "^6.1.0",
-    "ws": "^8.21.3"
+  "build": {
+    "appId": "com.tokenuse.app",
+    "productName": "TokenUse",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "web/**/*",
+      "electron/floating.html",
+      "assets/**/*"
+    ],
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        { "target": "nsis" },
+        { "target": "portable" }
+      ]
+    }
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "@types/ws": "^8.0.0",
     "electron": "^44.0.0",
+    "electron-builder": "^26.0.0",
     "esbuild": "^0.25.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "echarts": "^6.1.0",
+    "ws": "^8.21.3"
   }
 }

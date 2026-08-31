@@ -1,10 +1,10 @@
-// 生成应用图标 assets/icon.png（64x64：深色圆角底 + 青色仪表环），纯 zlib 手写 PNG，无依赖
+// 生成应用图标 assets/icon.png（256x256：深色圆角底 + 青色仪表环），纯 zlib 手写 PNG，无依赖
 import { deflateSync } from 'node:zlib'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const S = 64
+const S = 256
 const px = new Uint8Array(S * S * 4)
 
 function put(x, y, r, g, b, a = 255) {
@@ -19,20 +19,20 @@ function inRoundedRect(x, y, x0, y0, x1, y1, rad) {
   return (x - cx) ** 2 + (y - cy) ** 2 <= rad ** 2 || (x >= x0 + rad && x <= x1 - rad) || (y >= y0 + rad && y <= y1 - rad)
 }
 
+// 64 版度量的 4 倍换算
 for (let y = 0; y < S; y++) {
   for (let x = 0; x < S; x++) {
-    if (!inRoundedRect(x, y, 1, 1, S - 2, S - 2, 14)) continue
+    if (!inRoundedRect(x, y, 4, 4, S - 5, S - 5, 56)) continue
     put(x, y, 11, 18, 32) // 深底 #0B1220
-    const dx = x - 32, dy = y - 32
+    const dx = x - 128, dy = y - 128
     const dist = Math.sqrt(dx * dx + dy * dy)
-    if (Math.abs(dist - 17) <= 2.4) put(x, y, 34, 211, 238) // 青色环 #22D3EE
-    else if (dist <= 13.5 && dy >= -1) {
-      // 环内下半：仪表填充，越靠下越实
-      const t = dy / 13.5
+    if (Math.abs(dist - 68) <= 9.6) put(x, y, 34, 211, 238) // 青色环 #22D3EE
+    else if (dist <= 54 && dy >= -4) {
+      const t = dy / 54
       const alpha = Math.floor(90 + 165 * t)
       put(x, y, 34, 211, 238, alpha)
     }
-    if (Math.abs(dx) <= 8 && Math.abs(dy + 4) <= 1.4 && dist <= 14) put(x, y, 230, 245, 255) // 刻度线
+    if (Math.abs(dx) <= 32 && Math.abs(dy + 16) <= 5.6 && dist <= 56) put(x, y, 230, 245, 255) // 刻度线
   }
 }
 

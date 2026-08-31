@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { app, BrowserWindow, Menu, MenuItemConstructorOptions, Tray, ipcMain, nativeImage, screen } from 'electron'
 import { startServer, ServerHandle } from '../src/server/index.js'
@@ -12,6 +13,9 @@ let quitting = false
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 }
+
+app.setName('TokenUse')
+app.setAppUserModelId('com.tokenuse.app')
 
 const fmtN = (n: number): string => {
   if (n >= 1e8) return (n / 1e8).toFixed(2) + '亿'
@@ -47,13 +51,21 @@ function createDashboard() {
   })
 }
 
-const FLOATING_W = 320
-const FLOATING_H = 36
+const FLOAT_MIN_W = 140
+const FLOAT_MIN_H = 20
+
+// 当前悬浮条尺寸：初始取自设置，缩放时实时更新，拖动/约束均以此为准
+let floatingSize = { w: 320, h: 36 }
 
 function createFloating() {
+  const s = handle?.settings
+  floatingSize = {
+    w: Math.round(Math.min(2000, Math.max(FLOAT_MIN_W, Number(s?.floatingW) || 320))),
+    h: Math.round(Math.min(200, Math.max(FLOAT_MIN_H, Number(s?.floatingH) || 36))),
+  }
   floating = new BrowserWindow({
-    width: FLOATING_W,
-    height: FLOATING_H,
+    width: floatingSize.w,
+    height: floatingSize.h,
     useContentSize: true,
     frame: false,
     transparent: true,
@@ -71,10 +83,10 @@ function createFloating() {
   floating.setAlwaysOnTop(true, 'screen-saver')
   const wa = screen.getPrimaryDisplay().workArea
   floating.setBounds({
-    x: wa.x + wa.width - FLOATING_W - 14,
-    y: wa.y + wa.height - FLOATING_H - 14,
-    width: FLOATING_W,
-    height: FLOATING_H,
+    x: wa.x + wa.width - floatingSize.w - 14,
+    y: wa.y + wa.height - floatingSize.h - 14,
+    width: floatingSize.w,
+    height: floatingSize.h,
   })
   void floating.loadFile(path.join(app.getAppPath(), 'electron', 'floating.html'))
 }
@@ -84,11 +96,11 @@ function createFloating() {
 function clampFloatingToWorkArea() {
   if (!floating || floating.isDestroyed()) return
   const [x, y] = floating.getPosition()
-  const display = screen.getDisplayNearestPoint({ x: x + Math.floor(FLOATING_W / 2), y: y + Math.floor(FLOATING_H / 2) })
+  const display = screen.getDisplayNearestPoint({ x: x + Math.floor(floatingSize.w / 2), y: y + Math.floor(floatingSize.h / 2) })
   const wa = display.workArea
-  const nx = Math.max(wa.x + 8, Math.min(x, wa.x + wa.width - FLOATING_W - 8))
-  const ny = Math.max(wa.y + 8, Math.min(y, wa.y + wa.height - FLOATING_H - 8))
-  if (nx !== x || ny !== y) floating.setBounds({ x: nx, y: ny, width: FLOATING_W, height: FLOATING_H })
+  const nx = Math.max(wa.x + 8, Math.min(x, wa.x + wa.width - floatingSize.w - 8))
+  const ny = Math.max(wa.y + 8, Math.min(y, wa.y + wa.height - floatingSize.h - 8))
+  if (nx !== x || ny !== y) floating.setBounds({ x: nx, y: ny, width: floatingSize.w, height: floatingSize.h })
 }
 
 function applyFloating() {
@@ -154,13 +166,28 @@ function onSnap(snap: Snapshot) {
 }
 
 app.whenReady().then(async () => {
-  app.setAppUserModelId('com.tokenuse.app')
   const rootDir = app.getAppPath()
+  const userData = app.getPath('userData')
+
+  // 迁移：开发期数据（项目内 data/）→ 用户数据目录（打包后的唯一可写位置）
   try {
-    handle = await startServer({ rootDir })
+    const legacy = path.join(rootDir, 'data')
+    if (!fs.existsSync(path.join(userData, 'settings.json')) && fs.existsSync(path.join(legacy, 'settings.json'))) {
+      fs.mkdirSync(userData, { recursive: true })
+      for (const f of ['settings.json', 'prices.json', 'remote-prices.json']) {
+        const src = path.join(legacy, f)
+        if (fs.existsSync(src)) fs.copyFileSync(src, path.join(userData, f))
+      }
+    }
+  } catch {
+    /* 迁移失败不影响启动，走默认配置 */
+  }
+
+  try {
+    handle = await startServer({ rootDir, dataDir: userData })
     handle.setOnChange(onSnap)
   } catch (e) {
-    console.error('[TokenUse] 本地服务启动失败（端口被占用？）:', (e as Error).message)
+    console.error('[TokenUse] 本地服务启动失败:', (e as Error).stack ?? (e as Error).message)
   }
 
   function stopFloatingDrag() {
@@ -170,13 +197,23 @@ app.whenReady().then(async () => {
     }
   }
 
+  function stopFloatingResize() {
+    if (resizeTimer) {
+      clearInterval(resizeTimer)
+      resizeTimer = null
+    }
+    resizeCtx = null
+  }
+
   ipcMain.on('hide-floating', () => {
     stopFloatingDrag()
+    stopFloatingResize()
     handle?.updateSettings({ floatingBar: false })
     applyFloating()
   })
   ipcMain.on('open-dashboard', () => {
     stopFloatingDrag()
+    stopFloatingResize()
     createDashboard()
   })
 
@@ -186,6 +223,7 @@ app.whenReady().then(async () => {
 
   ipcMain.on('floating-drag-start', () => {
     if (!floating || floating.isDestroyed()) return
+    stopFloatingResize()
     const cursor = screen.getCursorScreenPoint()
     const [wx, wy] = floating.getPosition()
     dragOffset = { x: cursor.x - wx, y: cursor.y - wy }
@@ -196,13 +234,55 @@ app.whenReady().then(async () => {
       floating.setBounds({
         x: c.x - dragOffset.x,
         y: c.y - dragOffset.y,
-        width: FLOATING_W,
-        height: FLOATING_H,
+        width: floatingSize.w,
+        height: floatingSize.h,
       })
       clampFloatingToWorkArea()
     }, 16)
   })
   ipcMain.on('floating-drag-end', stopFloatingDrag)
+
+  // 缩放：与拖动同思路，渲染层报告抓住的边/角，主进程每 16ms 按真实光标位移重算边界。
+  // 抓西/北边时锚定对侧边，保证另一侧视觉上不动。
+  type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+  let resizeTimer: NodeJS.Timeout | null = null
+  let resizeCtx: { edge: ResizeEdge; bounds: { x: number; y: number; width: number; height: number }; cursor: { x: number; y: number } } | null = null
+
+  ipcMain.on('floating-resize-start', (_e, edge: ResizeEdge) => {
+    if (!floating || floating.isDestroyed()) return
+    stopFloatingDrag()
+    stopFloatingResize()
+    resizeCtx = {
+      edge,
+      bounds: floating.getBounds(),
+      cursor: screen.getCursorScreenPoint(),
+    }
+    resizeTimer = setInterval(() => {
+      if (!floating || floating.isDestroyed() || !resizeCtx) return
+      const c = screen.getCursorScreenPoint()
+      const { edge, bounds, cursor } = resizeCtx
+      const dx = c.x - cursor.x
+      const dy = c.y - cursor.y
+      let { x, y, width, height } = bounds
+      if (edge.includes('e')) width = bounds.width + dx
+      if (edge.includes('s')) height = bounds.height + dy
+      if (edge.includes('w')) width = bounds.width - dx
+      if (edge.includes('n')) height = bounds.height - dy
+      // 尺寸约束：下限防挤爆内容，上限不超出所在显示器工作区
+      const wa = screen.getDisplayNearestPoint({ x: bounds.x + Math.floor(bounds.width / 2), y: bounds.y + Math.floor(bounds.height / 2) }).workArea
+      width = Math.max(FLOAT_MIN_W, Math.min(width, wa.width - 16))
+      height = Math.max(FLOAT_MIN_H, Math.min(height, wa.height - 16))
+      if (edge.includes('w')) x = bounds.x + bounds.width - width
+      if (edge.includes('n')) y = bounds.y + bounds.height - height
+      floatingSize = { w: width, h: height }
+      floating.setBounds({ x, y, width, height })
+      clampFloatingToWorkArea()
+    }, 16)
+  })
+  ipcMain.on('floating-resize-end', () => {
+    stopFloatingResize()
+    handle?.updateSettings({ floatingW: floatingSize.w, floatingH: floatingSize.h })
+  })
 
   const icon = nativeImage.createFromPath(path.join(rootDir, 'assets', 'icon.png'))
   tray = new Tray(icon.resize({ width: 16, height: 16 }))
