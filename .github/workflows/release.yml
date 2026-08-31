@@ -21,7 +21,9 @@ jobs:
 
       - run: npm run build
 
-      - run: npx electron-builder --win
+      - run: npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: softprops/action-gh-release@v2
         with:
