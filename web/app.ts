@@ -219,8 +219,8 @@ function renderCards() {
   $('c-today-cost-sub').textContent = totalsSub(t)
   $('c-month-cost').textContent = costLabel(m.cost, m.costUnknown)
   const lm = snap.monthly[snap.monthly.length - 2]
-  $('c-month-sub').textContent =
-    `本月 ${m.requests} 次请求 · ${snap.projects.length} 个项目 · 上月 ${lm ? fmtTokens(lm.tokens) + ' tok / ' + fmtCost(lm.cost) : '—'}`
+  $('c-month-sub').innerHTML =
+    `本月 ${m.requests} 次请求 · ${snap.projects.length} 个项目<br>上月 ${lm ? fmtTokens(lm.tokens) + ' tok / ' + fmtCost(lm.cost) : '—'}`
   $('c-req').textContent = String(t.requests)
   $('c-src').textContent = snap.sources.map(s => `${s.id === 'zcode' ? 'ZCode' : 'Codex'} ${s.ok ? '✓' : '✗'} ${s.records}`).join(' · ')
 }
