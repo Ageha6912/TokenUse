@@ -77,7 +77,16 @@ main { padding: 18px 22px 40px; max-width: 1500px; margin: 0 auto; }
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
   padding: 14px 18px; margin-bottom: 14px;
 }
-.panel h2 { font-size: 14px; margin-bottom: 10px; font-weight: 600; }
+.panel h2 { font-size: 14px; margin-bottom: 10px; font-weight: 600; display: flex; align-items: center; }
+.seg { margin-left: auto; display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg-btn {
+  background: var(--panel2); color: var(--muted2); border: none;
+  padding: 3px 12px; font-size: 11px; cursor: pointer; font-family: inherit;
+  transition: background .15s, color .15s;
+}
+.seg-btn + .seg-btn { border-left: 1px solid var(--border); }
+.seg-btn:hover { color: var(--text); }
+.seg-btn.active { background: #155e75; color: #e0f2fe; }
 .sub2 { color: var(--muted); font-size: 11px; font-weight: 400; margin-left: 8px; }
 
 .live-grid { display: grid; grid-template-columns: 1fr 380px; gap: 14px; }

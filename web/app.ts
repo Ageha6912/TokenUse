@@ -12,6 +12,7 @@ interface Price {
 let snap: Snapshot | null = null
 const charts: Record<string, echarts.ECharts> = {}
 const filters = { source: '', project: '', model: '', range: 'all', q: '' }
+let trendMode: 'day' | 'month' = 'day'
 let lastTableSig = ''
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement
@@ -217,7 +218,9 @@ function renderCards() {
   $('c-today-cost').textContent = costLabel(t.cost, t.costUnknown)
   $('c-today-cost-sub').textContent = totalsSub(t)
   $('c-month-cost').textContent = costLabel(m.cost, m.costUnknown)
-  $('c-month-sub').textContent = `本月 ${fmtTokens(m.tokens)} tok · ${m.requests} 次请求 · ${snap.projects.length} 个项目`
+  const lm = snap.monthly[snap.monthly.length - 2]
+  $('c-month-sub').textContent =
+    `上月 ${lm ? fmtTokens(lm.tokens) + ' tok / ' + fmtCost(lm.cost) : '—'} · 本月 ${m.requests} 次请求 · ${snap.projects.length} 个项目`
   $('c-req').textContent = String(t.requests)
   $('c-src').textContent = snap.sources.map(s => `${s.id === 'zcode' ? 'ZCode' : 'Codex'} ${s.ok ? '✓' : '✗'} ${s.records}`).join(' · ')
 }
@@ -254,7 +257,11 @@ function renderSpark() {
 }
 
 function renderDaily() {
-  const dl = snap!.daily
+  const day = trendMode === 'day'
+  const dl = day
+    ? snap!.daily.map(p => ({ label: p.date, tokens: p.tokens, cost: p.cost }))
+    : snap!.monthly.map(p => ({ label: p.label, tokens: p.tokens, cost: p.cost }))
+  $('trend-title').textContent = day ? '每日趋势（30 天）' : '月度趋势（近 12 个月）'
   charts.daily.setOption({
     grid: { left: 52, right: 52, top: 30, bottom: 24 },
     legend: { data: ['tokens', '成本'], textStyle: { color: '#94a3b8', fontSize: 11 }, top: 0, itemWidth: 12, itemHeight: 8 },
@@ -265,8 +272,8 @@ function renderDaily() {
     },
     xAxis: {
       type: 'category',
-      data: dl.map(p => p.date),
-      axisLabel: { interval: 4, color: '#64748b', fontSize: 10 },
+      data: dl.map(p => p.label),
+      axisLabel: { interval: day ? 4 : 0, color: '#64748b', fontSize: 10 },
       axisLine: { lineStyle: { color: '#1e2a44' } },
     },
     yAxis: [
@@ -285,7 +292,7 @@ function renderDaily() {
         symbolSize: 3, connectNulls: true, animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
       },
     ],
-  })
+  }, true)
 }
 
 function renderPie() {
@@ -648,6 +655,13 @@ function bindEvents() {
     }
   })
   buildFilters()
+  document.querySelectorAll('#trend-seg .seg-btn').forEach(b =>
+    b.addEventListener('click', () => {
+      trendMode = (b as HTMLElement).dataset.mode as 'day' | 'month'
+      document.querySelectorAll('#trend-seg .seg-btn').forEach(x => x.classList.toggle('active', x === b))
+      renderDaily()
+    }),
+  )
   $('btn-settings').addEventListener('click', () => void openDrawer())
   $('btn-close-drawer').addEventListener('click', closeDrawer)
   $('mask').addEventListener('click', closeDrawer)

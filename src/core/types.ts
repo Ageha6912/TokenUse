@@ -88,6 +88,7 @@ export interface Snapshot {
   byModelMonth: Bucket[]
   byProjectMonth: Bucket[]
   daily: { date: string; tokens: number; cost: number | null }[]
+  monthly: { month: string; label: string; tokens: number; cost: number | null }[]
   timeline: { minute: string; tokens: number }[]
   recent: WireRecord[]
   records: WireRecord[]

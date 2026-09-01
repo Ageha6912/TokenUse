@@ -30,7 +30,10 @@
   </section>
 
   <section class="charts-row">
-    <div class="panel"><h2>每日趋势（30 天）</h2><div id="daily" class="chart"></div></div>
+    <div class="panel">
+      <h2><span id="trend-title">每日趋势（30 天）</span><span class="seg" id="trend-seg"><button class="seg-btn active" data-mode="day" type="button">日</button><button class="seg-btn" data-mode="month" type="button">月</button></span></h2>
+      <div id="daily" class="chart"></div>
+    </div>
     <div class="panel"><h2>模型占比（本月）</h2><div id="pie" class="chart"></div></div>
     <div class="panel"><h2>项目消耗（本月）</h2><div id="proj" class="chart"></div></div>
   </section>

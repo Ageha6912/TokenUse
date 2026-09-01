@@ -163,6 +163,7 @@ export class Store {
     const month = newAcc()
     const all = newAcc()
     const dailyAgg = new Map<string, { tokens: number; cost: number; unknown: number }>()
+    const monthlyAgg = new Map<string, { tokens: number; cost: number; unknown: number }>()
     const modelAgg = new Map<string, Acc>()
     const projAgg = new Map<string, Acc>()
     const minuteMs = 60_000
@@ -196,6 +197,12 @@ export class Store {
       if (cost == null) da.unknown++
       else da.cost += cost
       dailyAgg.set(dk, da)
+      const mk = dk.slice(0, 7)
+      const ma = monthlyAgg.get(mk) ?? { tokens: 0, cost: 0, unknown: 0 }
+      ma.tokens += t
+      if (cost == null) ma.unknown++
+      else ma.cost += cost
+      monthlyAgg.set(mk, ma)
       if (r.ts >= (curMin - 59) * minuteMs) {
         const idx = Math.floor(r.ts / minuteMs)
         tlAgg.set(idx, (tlAgg.get(idx) ?? 0) + t)
@@ -208,6 +215,19 @@ export class Store {
       const a = dailyAgg.get(key)
       daily.push({
         date: key.slice(5),
+        tokens: a?.tokens ?? 0,
+        cost: a && (a.cost > 0 || a.unknown === 0) ? a.cost : null,
+      })
+    }
+
+    const monthly: { month: string; label: string; tokens: number; cost: number | null }[] = []
+    for (let i = 11; i >= 0; i--) {
+      const md = new Date(d.getFullYear(), d.getMonth() - i, 1)
+      const key = `${md.getFullYear()}-${pad(md.getMonth() + 1)}`
+      const a = monthlyAgg.get(key)
+      monthly.push({
+        month: key,
+        label: `${md.getMonth() + 1}月`,
         tokens: a?.tokens ?? 0,
         cost: a && (a.cost > 0 || a.unknown === 0) ? a.cost : null,
       })
@@ -231,6 +251,7 @@ export class Store {
       byModelMonth: buckets(modelAgg, 12),
       byProjectMonth: buckets(projAgg, 10),
       daily,
+      monthly,
       timeline,
       recent: this.sorted.slice(-60).reverse().map(r => this.wire(r)),
       records: this.sorted.slice(-2000).reverse().map(r => this.wire(r)),
