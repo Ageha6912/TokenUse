@@ -39,6 +39,13 @@ function fmtTokens(n: number): string {
   return n.toLocaleString('zh-CN')
 }
 
+// 轴标签用：去尾零、去空格，短文本避免相邻刻度重叠
+function fmtAxisTokens(n: number): string {
+  if (n >= 1e8) return +(n / 1e8).toFixed(2) + '亿'
+  if (n >= 1e4) return +(n / 1e4).toFixed(1) + '万'
+  return n.toLocaleString('zh-CN')
+}
+
 function fmtCost(c: number | null | undefined): string {
   return c == null ? '—' : '¥' + c.toFixed(2)
 }
@@ -248,7 +255,7 @@ function renderSpark() {
     },
     yAxis: {
       type: 'value',
-      axisLabel: { formatter: (v: number) => fmtTokens(v), color: '#64748b', fontSize: 10 },
+      axisLabel: { formatter: (v: number) => fmtAxisTokens(v), color: '#64748b', fontSize: 10, hideOverlap: true },
       splitLine: { lineStyle: { color: '#16203a' } },
     },
     tooltip: {
@@ -287,7 +294,7 @@ function renderDaily() {
       axisLine: { lineStyle: { color: '#1e2a44' } },
     },
     yAxis: [
-      { type: 'value', axisLabel: { formatter: (v: number) => fmtTokens(v), color: '#64748b', fontSize: 10 }, splitLine: { lineStyle: { color: '#16203a' } } },
+      { type: 'value', axisLabel: { formatter: (v: number) => fmtAxisTokens(v), color: '#64748b', fontSize: 10, hideOverlap: true }, splitLine: { lineStyle: { color: '#16203a' } } },
       { type: 'value', axisLabel: { formatter: (v: number) => '¥' + v, color: '#64748b', fontSize: 10 }, splitLine: { show: false } },
     ],
     series: [
@@ -344,7 +351,8 @@ function renderProj() {
     grid: { left: 8, right: 56, top: 10, bottom: 10, containLabel: true },
     xAxis: {
       type: 'value',
-      axisLabel: { formatter: (v: number) => fmtTokens(v), color: '#64748b', fontSize: 10 },
+      splitNumber: 4,
+      axisLabel: { formatter: (v: number) => fmtAxisTokens(v), color: '#64748b', fontSize: 10, hideOverlap: true },
       splitLine: { lineStyle: { color: '#16203a' } },
     },
     yAxis: {
