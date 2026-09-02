@@ -196,11 +196,53 @@ tbody tr td:first-child { color: var(--muted2); }
 .row .del:hover { color: #f87171; border-color: #7f1d1d; }
 .btn-line { display: flex; gap: 8px; margin-top: 4px; }
 
+/* ---------- 手机访问面板 ---------- */
+.lan-qr-box { display: flex; justify-content: center; padding: 8px 0 12px; }
+.lan-qr-box svg {
+  width: 172px; height: 172px;
+  background: #fff; border-radius: 10px; padding: 10px;
+  display: block;
+}
+.lan-url-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 2px; }
+.lan-url-row code {
+  flex: 1; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 8px; font-size: 10px; color: var(--muted2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 @media (max-width: 1150px) {
   #cards { grid-template-columns: repeat(2, 1fr); }
   .charts-row { grid-template-columns: 1fr; }
   .live-grid { grid-template-columns: 1fr; }
   .recent { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 10px; }
+}
+
+/* ---------- 手机窄屏 ---------- */
+@media (max-width: 640px) {
+  header { padding: 10px 12px; gap: 10px; }
+  .brand { font-size: 15px; gap: 8px; }
+  .brand .tag { display: none; }
+  .hstatus { font-size: 11px; }
+  main { padding: 12px 12px 32px; }
+
+  #cards { gap: 10px; margin-bottom: 10px; }
+  .card { padding: 12px 14px; border-radius: 12px; }
+  .card .value { font-size: 20px; }
+  .card .sub { font-size: 10px; }
+
+  .panel { padding: 12px 14px; margin-bottom: 10px; border-radius: 12px; }
+  .panel h2 { font-size: 13px; flex-wrap: wrap; }
+  .chart { height: 190px; }
+  .chart-sm { height: 150px; }
+  .recent { max-height: 180px; }
+
+  #filters { gap: 6px; }
+  #filters input { min-width: 0; width: 100%; }
+  .cselect-trigger { min-width: 0; }
+  .table-wrap { max-height: 55vh; }
+
+  #drawer { width: 100vw; box-shadow: none; }
+  .form-row label { min-width: 96px; }
 }
 
 /* ---------- 滚动条 ---------- */

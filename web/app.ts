@@ -1,5 +1,15 @@
 import * as echarts from 'echarts'
+import qrcode from 'qrcode-generator'
 import type { Snapshot, Totals, WireRecord } from '../src/core/types'
+
+// ---------- 局域网访问令牌：页面地址带来的 token 透传给后续 fetch / WebSocket ----------
+const urlToken = new URLSearchParams(location.search).get('token') ?? ''
+if (urlToken) history.replaceState(null, '', '/')
+
+function withToken(pathname: string): string {
+  if (!urlToken) return pathname
+  return pathname + (pathname.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(urlToken)
+}
 
 interface Price {
   input: number
@@ -497,13 +507,13 @@ function applySnap(s: Snapshot) {
 // ---------- 数据通道 ----------
 
 async function refresh() {
-  const r = await fetch('/api/state')
+  const r = await fetch(withToken('/api/state'))
   applySnap(await r.json())
 }
 
 function connectWs() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  const ws = new WebSocket(`${proto}://${location.host}/ws`)
+  const ws = new WebSocket(`${proto}://${location.host}/ws${urlToken ? '?token=' + encodeURIComponent(urlToken) : ''}`)
   ws.onmessage = e => {
     try {
       applySnap(JSON.parse(e.data as string))
@@ -522,18 +532,19 @@ function connectWs() {
 // ---------- 设置抽屉 ----------
 
 function post(url: string, body: unknown) {
-  return fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  return fetch(withToken(url), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
 }
 
 async function openDrawer() {
   $('drawer').classList.add('open')
   $('mask').classList.add('open')
-  const st = (await (await fetch('/api/settings')).json()) as { pollIntervalSec: number; usdCny: number; providers: Record<string, string>; defaultBilling: string }
+  const st = (await (await fetch(withToken('/api/settings'))).json()) as { pollIntervalSec: number; usdCny: number; providers: Record<string, string>; defaultBilling: string }
   ;($('s-interval') as HTMLInputElement).value = String(st.pollIntervalSec)
   ;($('s-usd') as HTMLInputElement).value = String(st.usdCny)
   providerPending = { ...st.providers }
   renderProviderRows(st.providers, st.defaultBilling as 'metered' | 'plan')
   await loadPrices()
+  void loadLanSection()
 }
 
 function closeDrawer() {
@@ -605,7 +616,7 @@ function renderPriceRows(overrides: Record<string, Price>) {
 }
 
 async function loadPrices() {
-  const j = (await (await fetch('/api/prices')).json()) as { overrides: Record<string, Price>; remoteCount: number }
+  const j = (await (await fetch(withToken('/api/prices'))).json()) as { overrides: Record<string, Price>; remoteCount: number }
   remoteCount = j.remoteCount
   renderPriceRows(j.overrides)
   $('remote-status').textContent = `远程价格库：${remoteCount} 条（覆盖文件优先于远程）`
@@ -637,6 +648,84 @@ function flash(btnId: string, done: string, orig: string) {
   setTimeout(() => (b.textContent = orig), 1500)
 }
 
+// ---------- 手机访问（局域网共享；该面板仅在本机打开设置时可见） ----------
+
+interface LanInfo {
+  enabled: boolean
+  port: number
+  token: string
+  urls: { name: string; url: string }[]
+}
+
+let lanInfo: LanInfo | null = null
+
+function lanPrimaryUrl(): string {
+  return lanInfo?.urls[0]?.url ?? ''
+}
+
+async function loadLanSection(retries = 3): Promise<void> {
+  try {
+    const r = await fetch(withToken('/api/lan-info'))
+    lanInfo = r.ok ? ((await r.json()) as LanInfo) : null
+  } catch {
+    lanInfo = null
+  }
+  if (!lanInfo && retries > 0) {
+    // 开关切换会触发服务端换绑、断开当前连接，稍候重试即可拿到新状态
+    await new Promise(r => setTimeout(r, 600))
+    return loadLanSection(retries - 1)
+  }
+  renderLanSection()
+}
+
+function renderLanSection() {
+  if (!lanInfo) {
+    // 手机端访问时拿不到该接口（仅限本机），整段隐藏
+    $('lan-section').classList.add('hidden')
+    return
+  }
+  $('lan-section').classList.remove('hidden')
+  $('lan-toggle').textContent = lanInfo.enabled ? '关闭' : '开启'
+  $('lan-toggle').classList.toggle('primary', !lanInfo.enabled)
+  const primary = lanPrimaryUrl()
+  if (lanInfo.enabled && primary) {
+    $('lan-panel').classList.remove('hidden')
+    const qr = qrcode(0, 'M')
+    qr.addData(primary)
+    qr.make()
+    $('lan-qr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true })
+    $('lan-url').textContent = primary
+    const rest = lanInfo.urls.filter(u => u.url !== primary)
+    $('lan-alt').textContent = rest.length
+      ? `其他网卡：${rest.map(u => u.url.replace(`?token=${lanInfo!.token}`, '?token=…')).join('；')}`
+      : '手机需与电脑处于同一网络；在外面可用 Tailscale 等组网工具访问同一地址。'
+  } else {
+    $('lan-panel').classList.add('hidden')
+  }
+}
+
+async function saveLan(patch: { enabled?: boolean; token?: string }) {
+  await post('/api/settings', {
+    lanAccess: { enabled: patch.enabled ?? lanInfo?.enabled ?? false, token: patch.token ?? lanInfo?.token ?? '' },
+  })
+  await loadLanSection()
+}
+
+function bindLanEvents() {
+  $('lan-toggle').addEventListener('click', () => void saveLan({ enabled: !(lanInfo?.enabled ?? false) }))
+  $('lan-copy').addEventListener('click', () => {
+    const url = lanPrimaryUrl()
+    if (!url) return
+    void navigator.clipboard?.writeText(url)
+    flash('lan-copy', '已复制 ✓', '复制')
+  })
+  $('lan-regen').addEventListener('click', () => {
+    const buf = new Uint8Array(16)
+    crypto.getRandomValues(buf)
+    void saveLan({ enabled: true, token: [...buf].map(b => b.toString(16).padStart(2, '0')).join('') })
+  })
+}
+
 // ---------- 启动 ----------
 
 function initCharts() {
@@ -655,6 +744,7 @@ function bindEvents() {
     }
   })
   buildFilters()
+  bindLanEvents()
   document.querySelectorAll('#trend-seg .seg-btn').forEach(b =>
     b.addEventListener('click', () => {
       trendMode = (b as HTMLElement).dataset.mode as 'day' | 'month'
@@ -740,4 +830,8 @@ window.addEventListener('DOMContentLoaded', () => {
   initChartsSafe()
   void refresh().then(connectWs)
   connectWs()
+  // PWA 应用壳缓存：只在非本机访问（手机端）时注册，不影响桌面场景
+  if ('serviceWorker' in navigator && !['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) {
+    navigator.serviceWorker.register(withToken('/sw.js')).catch(() => {})
+  }
 })

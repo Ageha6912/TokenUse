@@ -4,7 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TokenUse · Token 消耗监测</title>
+<meta name="theme-color" content="#0b1220">
 <link rel="icon" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TokenUse">
+<link rel="manifest" href="/manifest.webmanifest">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -81,6 +88,18 @@
     <div class="btn-line">
       <button class="btn" id="price-add">＋ 添加模型</button>
       <button class="btn primary" id="price-save">保存价格表</button>
+    </div>
+
+    <h3>手机访问</h3>
+    <div id="lan-section" class="hidden">
+      <div class="form-row"><label>局域网共享</label><button class="btn" id="lan-toggle">开启</button></div>
+      <div id="lan-panel" class="hidden">
+        <div class="hint">手机连到同一 Wi-Fi，用相机扫码或在浏览器打开地址即可实时查看，数据不离开本机网络。</div>
+        <div class="lan-qr-box"><div id="lan-qr"></div></div>
+        <div class="lan-url-row"><code id="lan-url" class="mono"></code><button class="btn" id="lan-copy">复制</button></div>
+        <div class="hint" id="lan-alt"></div>
+        <div class="btn-line"><button class="btn" id="lan-regen">重置令牌</button></div>
+      </div>
     </div>
 
     <h3>远程价格</h3>

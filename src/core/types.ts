@@ -20,6 +20,12 @@ export function totalTokens(r: Pick<UsageRecord, 'inputTokens' | 'outputTokens' 
 
 export type Billing = 'metered' | 'plan'
 
+// 手机端局域网访问：开启后服务绑定 0.0.0.0，非本机请求须带 token（回环请求永远豁免）
+export interface LanAccess {
+  enabled: boolean
+  token: string
+}
+
 export interface Settings {
   port: number
   pollIntervalSec: number
@@ -30,6 +36,7 @@ export interface Settings {
   floatingW: number // 悬浮条宽度（自由缩放后记忆）
   floatingH: number // 悬浮条高度
   autostart: boolean
+  lanAccess: LanAccess
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -45,6 +52,7 @@ export const DEFAULT_SETTINGS: Settings = {
   floatingW: 320,
   floatingH: 36,
   autostart: false,
+  lanAccess: { enabled: false, token: '' },
 }
 
 export interface ModelPrice {

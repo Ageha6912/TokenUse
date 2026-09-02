@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import crypto from 'node:crypto'
 import path from 'node:path'
 import { Pricing } from './pricing.js'
 import { CodexSource } from '../sources/codex.js'
@@ -19,13 +20,15 @@ import {
 export function loadSettings(dataDir: string): Settings {
   fs.mkdirSync(dataDir, { recursive: true })
   const file = path.join(dataDir, 'settings.json')
-  let s: Settings = { ...DEFAULT_SETTINGS, providers: { ...DEFAULT_SETTINGS.providers } }
+  let s: Settings = { ...DEFAULT_SETTINGS, providers: { ...DEFAULT_SETTINGS.providers }, lanAccess: { ...DEFAULT_SETTINGS.lanAccess } }
   try {
     const j = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<Settings>
-    s = { ...s, ...j, providers: { ...s.providers, ...(j.providers ?? {}) } }
+    s = { ...s, ...j, providers: { ...s.providers, ...(j.providers ?? {}) }, lanAccess: { ...s.lanAccess, ...(j.lanAccess ?? {}) } }
   } catch {
     /* 无文件或坏 JSON → 用默认值 */
   }
+  // 令牌缺失则预生成一个，开启局域网访问时立即可用
+  if (!s.lanAccess.token) s.lanAccess.token = crypto.randomBytes(16).toString('hex')
   fs.writeFileSync(file, JSON.stringify(s, null, 2), 'utf8')
   return s
 }
