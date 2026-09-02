@@ -1,7 +1,7 @@
 {
   "name": "tokenuse",
   "productName": "TokenUse",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "实时监测 AI 编程工具的 token 消耗",
   "main": "dist/electron/main.js",
