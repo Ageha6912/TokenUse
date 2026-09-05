@@ -7,20 +7,20 @@
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5"
             markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b4d75"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c9b98a"/>
     </marker>
   </defs>
 
-  <rect width="1200" height="390" rx="26" fill="#0b1220"/>
+  <rect width="1200" height="390" rx="26" fill="#f1ede5"/>
 
   <!-- 顶部说明行 -->
   <text x="56" y="44" font-family="Consolas, ui-monospace, SFMono-Regular, Menlo, monospace"
-        font-size="16" fill="#475569" letter-spacing="3">DATA FLOW</text>
+        font-size="16" fill="#a39e94" letter-spacing="3">DATA FLOW</text>
   <text x="801" y="44" text-anchor="middle" font-family="Consolas, ui-monospace, SFMono-Regular, Menlo, monospace"
-        font-size="16" fill="#475569">HTTP + WebSocket · 仅绑定 127.0.0.1</text>
+        font-size="16" fill="#a39e94">HTTP + WebSocket · 仅绑定 127.0.0.1</text>
 
   <!-- 连线 -->
-  <g fill="none" stroke="#3b4d75" stroke-width="2" marker-end="url(#arrow)">
+  <g fill="none" stroke="#c9b98a" stroke-width="2" marker-end="url(#arrow)">
     <path d="M356 106 C 420 106, 420 178, 480 178"/>
     <path d="M356 222 C 420 222, 420 222, 480 222"/>
     <path d="M746 168 C 800 168, 800 102, 850 102"/>
@@ -30,68 +30,68 @@
 
   <!-- 数据源列 -->
   <g id="sources">
-    <rect x="56" y="60" width="300" height="92" rx="14" fill="#111a2c" stroke="#1e2a44"/>
-    <rect x="56" y="60" width="3" height="92" rx="1.5" fill="#22d3ee"/>
+    <rect x="56" y="60" width="300" height="92" rx="14" fill="#f9f7f2" stroke="#ddd6c7"/>
+    <rect x="56" y="60" width="3" height="92" rx="1.5" fill="#f0b429"/>
     <text x="78" y="94" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="21" font-weight="600" fill="#e2e8f0">ZCode</text>
+          font-size="21" font-weight="600" fill="#1b1917">ZCode</text>
     <text x="78" y="118" font-family="Consolas, ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="16" fill="#64748b">~/.zcode/cli/db/db.sqlite</text>
+          font-size="16" fill="#a39e94">~/.zcode/cli/db/db.sqlite</text>
     <text x="78" y="140" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="16" fill="#94a3b8">model_usage / session · WAL 增量</text>
+          font-size="16" fill="#57534c">model_usage / session · WAL 增量</text>
 
-    <rect x="56" y="176" width="300" height="92" rx="14" fill="#111a2c" stroke="#1e2a44"/>
-    <rect x="56" y="176" width="3" height="92" rx="1.5" fill="#34d399"/>
+    <rect x="56" y="176" width="300" height="92" rx="14" fill="#f9f7f2" stroke="#ddd6c7"/>
+    <rect x="56" y="176" width="3" height="92" rx="1.5" fill="#2f9e6e"/>
     <text x="78" y="210" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="21" font-weight="600" fill="#e2e8f0">Codex</text>
+          font-size="21" font-weight="600" fill="#1b1917">Codex</text>
     <text x="78" y="234" font-family="Consolas, ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="16" fill="#64748b">~/.codex/sessions/**/*.jsonl</text>
+          font-size="16" fill="#a39e94">~/.codex/sessions/**/*.jsonl</text>
     <text x="78" y="256" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="16" fill="#94a3b8">token_count · last_token_usage</text>
+          font-size="16" fill="#57534c">token_count · last_token_usage</text>
 
-    <rect x="56" y="292" width="300" height="64" rx="14" fill="none" stroke="#263656" stroke-dasharray="6 5"/>
+    <rect x="56" y="292" width="300" height="64" rx="14" fill="none" stroke="#c9b98a" stroke-dasharray="6 5"/>
     <text x="78" y="318" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="18" fill="#64748b">+ Claude Code / 更多工具…</text>
+          font-size="18" fill="#57534c">+ Claude Code / 更多工具…</text>
     <text x="78" y="342" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="16" fill="#475569">插件式接入，新增解析器即可</text>
+          font-size="16" fill="#a39e94">插件式接入，新增解析器即可</text>
   </g>
 
   <!-- 核心列 -->
   <g id="core">
-    <rect x="486" y="118" width="260" height="180" rx="16" fill="#0e1728" stroke="#0e7490" stroke-width="1.5"/>
+    <rect x="486" y="118" width="260" height="180" rx="16" fill="#fdfcf8" stroke="#b07f0a" stroke-width="1.5"/>
     <text x="508" y="154" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="22" font-weight="700" fill="#22d3ee">TokenUse 核心</text>
+          font-size="22" font-weight="700" fill="#b07f0a">TokenUse 核心</text>
     <text x="508" y="190" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="18" fill="#cbd5e1">3 秒增量拉取</text>
+          font-size="18" fill="#1b1917">3 秒增量拉取</text>
     <text x="508" y="218" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="18" fill="#cbd5e1">模型聚合 · 价格折算</text>
+          font-size="18" fill="#1b1917">模型聚合 · 价格折算</text>
     <text x="508" y="246" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="18" fill="#cbd5e1">套餐内 / 按量分账</text>
+          font-size="18" fill="#1b1917">套餐内 / 按量分账</text>
     <text x="508" y="280" font-family="Consolas, ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="16" fill="#475569">src/core · src/sources</text>
+          font-size="16" fill="#a39e94">src/core · src/sources</text>
   </g>
 
   <!-- 展示层列 -->
   <g id="surfaces">
-    <rect x="856" y="60" width="288" height="84" rx="14" fill="#111a2c" stroke="#1e2a44"/>
-    <circle cx="892" cy="102" r="10" fill="none" stroke="#22d3ee" stroke-width="4"/>
+    <rect x="856" y="60" width="288" height="84" rx="14" fill="#f9f7f2" stroke="#ddd6c7"/>
+    <circle cx="892" cy="102" r="10" fill="none" stroke="#f0b429" stroke-width="4"/>
     <text x="916" y="96" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="20" font-weight="600" fill="#e2e8f0">Web 仪表盘</text>
+          font-size="20" font-weight="600" fill="#1b1917">Web 仪表盘</text>
     <text x="916" y="122" font-family="Consolas, ui-monospace, SFMono-Regular, Menlo, monospace"
-          font-size="16" fill="#64748b">127.0.0.1:8510 · 仅本机</text>
+          font-size="16" fill="#a39e94">127.0.0.1:8510 · 仅本机</text>
 
-    <rect x="856" y="160" width="288" height="84" rx="14" fill="#111a2c" stroke="#1e2a44"/>
-    <rect x="881" y="185" width="22" height="22" rx="6" fill="#0b1220" stroke="#22d3ee" stroke-width="2"/>
-    <circle cx="892" cy="196" r="5.5" fill="none" stroke="#22d3ee" stroke-width="2"/>
+    <rect x="856" y="160" width="288" height="84" rx="14" fill="#f9f7f2" stroke="#ddd6c7"/>
+    <rect x="881" y="185" width="22" height="22" rx="6" fill="#f1ede5" stroke="#f0b429" stroke-width="2"/>
+    <circle cx="892" cy="196" r="5.5" fill="none" stroke="#f0b429" stroke-width="2"/>
     <text x="916" y="196" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="20" font-weight="600" fill="#e2e8f0">悬浮图标</text>
+          font-size="20" font-weight="600" fill="#1b1917">悬浮图标</text>
     <text x="916" y="222" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="16" fill="#94a3b8">桌面右上角 · 点击展开用量</text>
+          font-size="16" fill="#57534c">桌面右上角 · 点击展开用量</text>
 
-    <rect x="856" y="260" width="288" height="84" rx="14" fill="#111a2c" stroke="#1e2a44"/>
-    <rect x="882" y="292" width="20" height="20" rx="5" fill="none" stroke="#22d3ee" stroke-width="3.5"/>
+    <rect x="856" y="260" width="288" height="84" rx="14" fill="#f9f7f2" stroke="#ddd6c7"/>
+    <rect x="882" y="292" width="20" height="20" rx="5" fill="none" stroke="#f0b429" stroke-width="3.5"/>
     <text x="916" y="296" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="20" font-weight="600" fill="#e2e8f0">系统托盘</text>
+          font-size="20" font-weight="600" fill="#1b1917">系统托盘</text>
     <text x="916" y="322" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="16" fill="#94a3b8">快捷查看 · 开机自启</text>
+          font-size="16" fill="#57534c">快捷查看 · 开机自启</text>
   </g>
 </svg>
