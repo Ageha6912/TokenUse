@@ -9,7 +9,7 @@
 
 - 只读采集 ZCode 的本地 SQLite（`~/.zcode/cli/db/db.sqlite`）和 Codex 的会话 JSONL（`~/.codex/sessions/`），每 3 秒增量拉取
 - 聚合 + 按价格表折算等效金额，通过 HTTP + WebSocket 服务对外提供（默认 `127.0.0.1:8510`）
-- 展示端：Web 仪表盘（`web/`，原生 TS + ECharts）、Electron 悬浮数字条 + 系统托盘（`electron/`）
+- 展示端：Web 仪表盘（`web/`，原生 TS + ECharts）、Electron 悬浮图标 + 系统托盘（`electron/`）。悬浮图标 = 桌面右上角 44×44 小图标（应用 logo），点击向下展开 252×232 用量面板（今日 tokens/花费/请求数 + 本月 tokens/花费 + 仪表盘/隐藏按钮），再点收起或点击别处（窗口失焦）自动收起；收起态可按住拖动，已无缩放功能。尺寸与钳制几何全部在 `electron/floating-geometry.ts`（纯模块，有单测）
 - 用户日常以**开发模式**运行：`E:\TokenUse\node_modules\electron\dist\electron.exe .`（不是安装版）
 - 用户数据目录：`%APPDATA%\TokenUse`（settings.json / prices.json）；项目内 `data/` 是开发期遗留
 
@@ -72,12 +72,15 @@
 
 9. 小坑：`gh release view --json` 不支持 `isLatest` 字段；jq 表达式里别用中文 key（解析报错）。
 
-10. **Service Worker 缓存壳文件：改了 `web/` 前端后用户端可能「看不到变化」**。`127.0.0.1` 是安全上下文，桌面浏览器同样会注册 SW；sw.js 以 cache-first 缓存 `/app.js` 且不回源验证，所以改代码、重启服务后，已打开的仪表盘页面仍跑旧 JS。修法：**每次改前端必须把 sw.js 里的 `CACHE` 版本号 +1**（现为 `tokenuse-shell-v2`），用户刷新 1–2 次后生效（skipWaiting + clients.claim 已配好）。另：ECharts 数值轴标签别用 `fmtTokens`（`1000.0 万` 带小数带空格，刻度一多必重叠），用 `fmtAxisTokens`（去尾零）+ `hideOverlap: true`。
+10. **Service Worker 缓存壳文件：改了 `web/` 前端后用户端可能「看不到变化」**。`127.0.0.1` 是安全上下文，桌面浏览器同样会注册 SW；sw.js 以 cache-first 缓存 `/app.js` 且不回源验证，所以改代码、重启服务后，已打开的仪表盘页面仍跑旧 JS。修法：**每次改前端必须把 sw.js 里的 `CACHE` 版本号 +1**（现为 `tokenuse-shell-v5`），用户刷新 1–2 次后生效（skipWaiting + clients.claim 已配好）。另：ECharts 数值轴标签别用 `fmtTokens`（`1000.0 万` 带小数带空格，刻度一多必重叠），用 `fmtAxisTokens`（去尾零）+ `hideOverlap: true`。
+
+11. **Windows 下 `%APPDATA%` 环境变量对 Electron 的 userData 不生效**（Chromium 的 appData 路径走系统 API 而非环境变量）：带 `APPDATA=xxx` 启动 electron 会加载真实用户数据 + 撞单实例锁 + 秒退。隔离启动 Electron 实例必须用代码里预留的 **`TOKENUSE_DATA_DIR`** 环境变量（`electron/main.ts` 开头处理，须在单实例锁之前 setPath），配合独立端口 settings.json。坑 6 的 `%APPDATA%` 覆盖法只对 `node dist/server/cli.js` 这种纯 Node 进程有效。
 
 ## 七、常用命令速查
 
 ```bash
 npm run build          # esbuild 打包 4 个入口 + tsc --noEmit 类型检查
+npm test               # build + 类型检查 + 全部单测（tests/，入口 scripts/test.mjs）
 npm start              # build + electron .（开发模式，用户就这么跑的）
 npm run server         # 只起服务不开壳
 curl http://127.0.0.1:8510/api/health       # 用户应用存活探测

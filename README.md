@@ -14,7 +14,7 @@
 
 ## 这是什么
 
-TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode 的本地数据库、解析 Codex 的会话日志，每 3 秒增量拉取每一次模型请求，按价格表折算成等效金额，在 **Web 仪表盘 / 悬浮数字条 / 系统托盘** 三处常显。
+TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode 的本地数据库、解析 Codex 的会话日志，每 3 秒增量拉取每一次模型请求，按价格表折算成等效金额，在 **Web 仪表盘 / 悬浮图标 / 系统托盘** 三处常显。
 
 数据全程留在本机，不经过任何第三方。金额是「等效成本」——按内置价格表折算，帮你心里有数，请按真实账单核价。
 
@@ -31,7 +31,7 @@ TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode �
 ## 工作原理
 
 <p align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="工作原理图：ZCode SQLite 与 Codex JSONL 两种数据源只读接入 TokenUse 核心（3 秒增量拉取、聚合、价格折算），经 WebSocket 推送给 Web 仪表盘、悬浮数字条、系统托盘">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="工作原理图：ZCode SQLite 与 Codex JSONL 两种数据源只读接入 TokenUse 核心（3 秒增量拉取、聚合、价格折算），经 WebSocket 推送给 Web 仪表盘、悬浮图标、系统托盘">
 </p>
 
 - **只读采集**：不写入、不加锁；ZCode 侧监听 `db-wal` 变化做增量拉取，解析器失败会安全重试
@@ -55,7 +55,7 @@ TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode �
 ```bash
 npm install
 npm run build
-npm start        # 启动 Electron 应用：仪表盘窗口 + 托盘 + 悬浮数字条
+npm start        # 启动 Electron 应用：仪表盘窗口 + 托盘 + 悬浮图标
 ```
 
 也可以只跑监测服务（不开 Electron 壳），用浏览器访问 <http://127.0.0.1:8510>：
@@ -71,7 +71,7 @@ npm run server
 src/core/      类型、价格表、聚合器/存储
 src/sources/   ZCode SQLite 与 Codex JSONL 数据源插件
 src/server/    HTTP + WebSocket 实时服务（仅绑定 127.0.0.1）
-electron/      托盘、悬浮数字条、仪表盘窗口
+electron/      托盘、悬浮图标（右上角小图标，点击展开用量面板）、仪表盘窗口
 web/           仪表盘前端（原生 TS + ECharts）
 scripts/       esbuild 构建与图标生成
 ```
@@ -80,7 +80,7 @@ scripts/       esbuild 构建与图标生成
 
 ## 配置文件（都在 `data/` 下，可直接编辑）
 
-- `settings.json` — 轮询间隔（默认 3 秒）、美元汇率、各 provider 计费方式、悬浮条/开机自启/局域网共享（`lanAccess.enabled` + `lanAccess.token`）
+- `settings.json` — 轮询间隔（默认 3 秒）、美元汇率、各 provider 计费方式、悬浮图标开关/开机自启/局域网共享（`lanAccess.enabled` + `lanAccess.token`）
 - `prices.json` — 价格覆盖表（每 1M token，CNY/USD），优先级最高
 - `remote-prices.json` — 从 LiteLLM 价格库拉取的远程价（设置里点按钮更新）
 

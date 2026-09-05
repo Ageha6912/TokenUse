@@ -3,12 +3,22 @@ import path from 'node:path'
 import { app, BrowserWindow, Menu, MenuItemConstructorOptions, Tray, ipcMain, nativeImage, screen } from 'electron'
 import { startServer, ServerHandle } from '../src/server/index.js'
 import type { Snapshot } from '../src/core/types.js'
+import { ICON_SIZE, defaultIconRect, expandedRect, clampIcon, clampExpanded, type Rect } from './floating-geometry'
 
 let tray: Tray | null = null
 let dash: BrowserWindow | null = null
 let floating: BrowserWindow | null = null
 let handle: ServerHandle | null = null
 let quitting = false
+
+// 测试/便携：用环境变量覆盖用户数据目录（settings.json / prices.json 所在处）。
+// Windows 下 %APPDATA% 对 Chromium 的 app.getPath 不生效（走系统 API 而非环境变量），必须有显式入口。
+// 注意要在单实例锁之前设置——锁按 userData 路径区分实例。
+if (process.env.TOKENUSE_DATA_DIR) app.setPath('userData', path.resolve(process.env.TOKENUSE_DATA_DIR))
+
+// 悬浮图标（收起态）左上角位置，尺寸恒为 ICON_SIZE×ICON_SIZE；展开面板由它推导
+let iconPos: Rect = { x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE }
+let floatingExpanded = false
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -51,21 +61,33 @@ function createDashboard() {
   })
 }
 
-const FLOAT_MIN_W = 140
-const FLOAT_MIN_H = 20
+// 悬浮窗口尺寸由收起/展开状态决定：收起=一枚图标（默认钉在桌面右上角），展开=向下的小面板
+function applyFloatingBounds() {
+  if (!floating || floating.isDestroyed()) return
+  const wa = screen.getDisplayNearestPoint({ x: iconPos.x + ICON_SIZE / 2, y: iconPos.y + ICON_SIZE / 2 }).workArea
+  if (floatingExpanded) {
+    floating.setBounds(clampExpanded(expandedRect(iconPos), wa))
+  } else {
+    // 拖动/收起都会经过这里：顺把图标钳回工作区并记住钳后的位置
+    const r = clampIcon(iconPos, wa)
+    iconPos = r
+    floating.setBounds(r)
+  }
+}
 
-// 当前悬浮条尺寸：初始取自设置，缩放时实时更新，拖动/约束均以此为准
-let floatingSize = { w: 320, h: 36 }
+function setFloatingExpanded(v: boolean) {
+  if (!floating || floating.isDestroyed()) return
+  if (floatingExpanded === v) return
+  floatingExpanded = v
+  applyFloatingBounds()
+  floating.webContents.send('expanded-changed', floatingExpanded)
+}
 
 function createFloating() {
-  const s = handle?.settings
-  floatingSize = {
-    w: Math.round(Math.min(2000, Math.max(FLOAT_MIN_W, Number(s?.floatingW) || 320))),
-    h: Math.round(Math.min(200, Math.max(FLOAT_MIN_H, Number(s?.floatingH) || 36))),
-  }
+  iconPos = defaultIconRect(screen.getPrimaryDisplay().workArea)
   floating = new BrowserWindow({
-    width: floatingSize.w,
-    height: floatingSize.h,
+    width: ICON_SIZE,
+    height: ICON_SIZE,
     useContentSize: true,
     frame: false,
     transparent: true,
@@ -81,26 +103,10 @@ function createFloating() {
     },
   })
   floating.setAlwaysOnTop(true, 'screen-saver')
-  const wa = screen.getPrimaryDisplay().workArea
-  floating.setBounds({
-    x: wa.x + wa.width - floatingSize.w - 14,
-    y: wa.y + wa.height - floatingSize.h - 14,
-    width: floatingSize.w,
-    height: floatingSize.h,
-  })
+  applyFloatingBounds()
+  // 展开状态下点击别处（窗口失焦）自动收起
+  floating.on('blur', () => setFloatingExpanded(false))
   void floating.loadFile(path.join(app.getAppPath(), 'electron', 'floating.html'))
-}
-
-// 把悬浮条约束回光标所在显示器的工作区，防止拖动/自适应宽度把它推出屏幕
-// 注意：这里用 setBounds 显式钉住尺寸——setPosition 在分数 DPI 下每次调用会让尺寸漂移 +1px
-function clampFloatingToWorkArea() {
-  if (!floating || floating.isDestroyed()) return
-  const [x, y] = floating.getPosition()
-  const display = screen.getDisplayNearestPoint({ x: x + Math.floor(floatingSize.w / 2), y: y + Math.floor(floatingSize.h / 2) })
-  const wa = display.workArea
-  const nx = Math.max(wa.x + 8, Math.min(x, wa.x + wa.width - floatingSize.w - 8))
-  const ny = Math.max(wa.y + 8, Math.min(y, wa.y + wa.height - floatingSize.h - 8))
-  if (nx !== x || ny !== y) floating.setBounds({ x: nx, y: ny, width: floatingSize.w, height: floatingSize.h })
 }
 
 function applyFloating() {
@@ -108,8 +114,9 @@ function applyFloating() {
   if (handle?.settings.floatingBar) {
     if (floating.isMinimized()) floating.restore()
     floating.showInactive()
-    clampFloatingToWorkArea()
+    applyFloatingBounds()
   } else {
+    setFloatingExpanded(false)
     floating.hide()
   }
 }
@@ -119,7 +126,7 @@ function buildTrayMenu(): Menu {
     { label: '打开仪表盘', click: () => createDashboard() },
     { type: 'separator' },
     {
-      label: '显示悬浮条',
+      label: '显示悬浮图标',
       type: 'checkbox',
       checked: handle?.settings.floatingBar ?? true,
       click: mi => {
@@ -161,6 +168,9 @@ function onSnap(snap: Snapshot) {
       cost: t.cost,
       unknown: t.costUnknown,
       requests: t.requests,
+      monthTokens: snap.month.tokens,
+      monthCost: snap.month.cost,
+      monthUnknown: snap.month.costUnknown,
     })
   }
 }
@@ -190,6 +200,11 @@ app.whenReady().then(async () => {
     console.error('[TokenUse] 本地服务启动失败:', (e as Error).stack ?? (e as Error).message)
   }
 
+  // 拖动：按下时记录光标与图标的偏移，主进程每 16ms 读真实光标位置绝对定位——严格跟手。
+  // 仅收起态可拖动；展开态点击图标即收起（渲染层负责区分点击与拖拽）。
+  let dragTimer: NodeJS.Timeout | null = null
+  let dragOffset = { x: 0, y: 0 }
+
   function stopFloatingDrag() {
     if (dragTimer) {
       clearInterval(dragTimer)
@@ -197,92 +212,33 @@ app.whenReady().then(async () => {
     }
   }
 
-  function stopFloatingResize() {
-    if (resizeTimer) {
-      clearInterval(resizeTimer)
-      resizeTimer = null
-    }
-    resizeCtx = null
-  }
-
   ipcMain.on('hide-floating', () => {
     stopFloatingDrag()
-    stopFloatingResize()
+    setFloatingExpanded(false)
     handle?.updateSettings({ floatingBar: false })
     applyFloating()
   })
   ipcMain.on('open-dashboard', () => {
     stopFloatingDrag()
-    stopFloatingResize()
     createDashboard()
   })
-
-  // 拖动：按下时记录光标与窗口的偏移，主进程每 16ms 读真实光标位置绝对定位——严格跟手
-  let dragTimer: NodeJS.Timeout | null = null
-  let dragOffset = { x: 0, y: 0 }
+  ipcMain.on('floating-set-expanded', (_e, v: unknown) => {
+    setFloatingExpanded(!!v)
+  })
 
   ipcMain.on('floating-drag-start', () => {
-    if (!floating || floating.isDestroyed()) return
-    stopFloatingResize()
+    if (!floating || floating.isDestroyed() || floatingExpanded) return
     const cursor = screen.getCursorScreenPoint()
-    const [wx, wy] = floating.getPosition()
-    dragOffset = { x: cursor.x - wx, y: cursor.y - wy }
+    dragOffset = { x: cursor.x - iconPos.x, y: cursor.y - iconPos.y }
     stopFloatingDrag()
     dragTimer = setInterval(() => {
       if (!floating || floating.isDestroyed()) return
       const c = screen.getCursorScreenPoint()
-      floating.setBounds({
-        x: c.x - dragOffset.x,
-        y: c.y - dragOffset.y,
-        width: floatingSize.w,
-        height: floatingSize.h,
-      })
-      clampFloatingToWorkArea()
+      iconPos = { x: c.x - dragOffset.x, y: c.y - dragOffset.y, width: ICON_SIZE, height: ICON_SIZE }
+      applyFloatingBounds()
     }, 16)
   })
   ipcMain.on('floating-drag-end', stopFloatingDrag)
-
-  // 缩放：与拖动同思路，渲染层报告抓住的边/角，主进程每 16ms 按真实光标位移重算边界。
-  // 抓西/北边时锚定对侧边，保证另一侧视觉上不动。
-  type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
-  let resizeTimer: NodeJS.Timeout | null = null
-  let resizeCtx: { edge: ResizeEdge; bounds: { x: number; y: number; width: number; height: number }; cursor: { x: number; y: number } } | null = null
-
-  ipcMain.on('floating-resize-start', (_e, edge: ResizeEdge) => {
-    if (!floating || floating.isDestroyed()) return
-    stopFloatingDrag()
-    stopFloatingResize()
-    resizeCtx = {
-      edge,
-      bounds: floating.getBounds(),
-      cursor: screen.getCursorScreenPoint(),
-    }
-    resizeTimer = setInterval(() => {
-      if (!floating || floating.isDestroyed() || !resizeCtx) return
-      const c = screen.getCursorScreenPoint()
-      const { edge, bounds, cursor } = resizeCtx
-      const dx = c.x - cursor.x
-      const dy = c.y - cursor.y
-      let { x, y, width, height } = bounds
-      if (edge.includes('e')) width = bounds.width + dx
-      if (edge.includes('s')) height = bounds.height + dy
-      if (edge.includes('w')) width = bounds.width - dx
-      if (edge.includes('n')) height = bounds.height - dy
-      // 尺寸约束：下限防挤爆内容，上限不超出所在显示器工作区
-      const wa = screen.getDisplayNearestPoint({ x: bounds.x + Math.floor(bounds.width / 2), y: bounds.y + Math.floor(bounds.height / 2) }).workArea
-      width = Math.max(FLOAT_MIN_W, Math.min(width, wa.width - 16))
-      height = Math.max(FLOAT_MIN_H, Math.min(height, wa.height - 16))
-      if (edge.includes('w')) x = bounds.x + bounds.width - width
-      if (edge.includes('n')) y = bounds.y + bounds.height - height
-      floatingSize = { w: width, h: height }
-      floating.setBounds({ x, y, width, height })
-      clampFloatingToWorkArea()
-    }, 16)
-  })
-  ipcMain.on('floating-resize-end', () => {
-    stopFloatingResize()
-    handle?.updateSettings({ floatingW: floatingSize.w, floatingH: floatingSize.h })
-  })
 
   const icon = nativeImage.createFromPath(path.join(rootDir, 'assets', 'icon.png'))
   tray = new Tray(icon.resize({ width: 16, height: 16 }))

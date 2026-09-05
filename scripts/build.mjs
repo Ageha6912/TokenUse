@@ -14,6 +14,8 @@ const nodeCommon = {
 await build({ ...nodeCommon, entryPoints: ['src/server/cli.ts'], outfile: 'dist/server/cli.js' })
 await build({ ...nodeCommon, entryPoints: ['electron/main.ts'], outfile: 'dist/electron/main.js' })
 await build({ ...nodeCommon, entryPoints: ['electron/preload.ts'], outfile: 'dist/electron/preload.js' })
+// 单独产出一份纯几何模块，供 tests/floating-geometry.test.mjs 直接 require
+await build({ ...nodeCommon, entryPoints: ['electron/floating-geometry.ts'], outfile: 'dist/electron/floating-geometry.js' })
 await build({
   entryPoints: ['web/app.ts'],
   outfile: 'web/app.js',

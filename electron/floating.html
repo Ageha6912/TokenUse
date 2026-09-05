@@ -5,148 +5,159 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: transparent; overflow: hidden; user-select: none; }
-  body { font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
-  /* 尺寸由 --s（高度/36）驱动：缩放窗口时内容等比变大变小 */
-  .pill {
-    cursor: default;
-    width: 100vw; height: 100vh;
-    display: flex; align-items: center; justify-content: space-between; gap: calc(8px * var(--s, 1));
-    background: rgba(11, 18, 32, 0.82);
-    border: 1px solid rgba(34, 211, 238, 0.35);
-    border-radius: calc(10px * var(--s, 1));
-    padding: 0 calc(8px * var(--s, 1)) 0 calc(12px * var(--s, 1));
-    color: #cbd5e1; font-size: calc(12px * var(--s, 1)); line-height: 1;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 16px rgba(0,0,0,.35);
-    white-space: nowrap;
-    transition: border-color .15s;
+  body { font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; width: 100vw; height: 100vh; position: relative; }
+  /* 配色与 web/style.css 暖金奶油主题一致（#f9f7f2 面板 + #b07f0a 金主色） */
+  /* 布局按铺满窗口设计：窗口收起时=44×44（正好一枚图标），展开时=252×232 面板，尺寸在 floating-geometry.ts */
+  /* 小图标：收起时填满整个窗口；展开时钉在面板右上角，屏幕位置不变 */
+  .icon {
+    position: absolute; top: 0; right: 0; width: 44px; height: 44px;
+    border: 1px solid rgba(176, 127, 10, 0.45);
+    border-radius: 11px;
+    background: linear-gradient(160deg, rgba(249, 247, 242, 0.97), rgba(240, 236, 227, 0.97));
+    box-shadow: 0 4px 14px rgba(30, 25, 15, 0.28);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0; z-index: 2;
+    transition: border-color .15s, transform .15s;
   }
-  .pill:hover { border-color: rgba(34, 211, 238, 0.7); }
-  .pill.dragging { backdrop-filter: none; background: rgba(11, 18, 32, 0.92); }
-  .left { display: flex; align-items: center; gap: calc(8px * var(--s, 1)); min-width: 0; }
-  .dot { width: calc(7px * var(--s, 1)); height: calc(7px * var(--s, 1)); border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399; flex: none; }
-  b { color: #22d3ee; font-weight: 600; }
-  .cost { color: #fbbf24; font-weight: 600; }
-  button {
-    background: none; border: none; color: #64748b; cursor: pointer;
-    font-size: calc(12px * var(--s, 1));
-    padding: calc(2px * var(--s, 1)) calc(4px * var(--s, 1));
-    border-radius: calc(6px * var(--s, 1));
-    font-family: inherit; flex: none;
+  .icon:hover { border-color: rgba(176, 127, 10, 0.9); transform: scale(1.06); }
+  .icon.dragging { transform: none; border-color: rgba(176, 127, 10, 0.9); }
+  .icon img { width: 32px; height: 32px; border-radius: 8px; pointer-events: none; }
+
+  /* 展开面板：铺满展开后的窗口，顶部右侧 44px 留给图标 */
+  .panel {
+    position: absolute; inset: 0;
+    background: rgba(249, 247, 242, 0.97);
+    border: 1px solid rgba(176, 127, 10, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(30, 25, 15, 0.3);
+    backdrop-filter: blur(10px);
+    display: flex; flex-direction: column;
+    transform-origin: top right;
   }
-  button:hover { color: #e2e8f0; background: rgba(148,163,184,.15); }
+  body.expanded .panel { animation: unfold .18s cubic-bezier(.22, 1, .36, 1); }
+  @keyframes unfold {
+    from { opacity: 0; transform: translateY(-8px) scale(.96); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .head { height: 44px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 14px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 2.5px rgba(22, 163, 74, .18); flex: none; }
+  .brand { font-size: 11px; color: #a39e94; letter-spacing: 2px; }
+  .collapse {
+    margin-left: auto; width: 26px; height: 26px; border: none; border-radius: 7px;
+    background: none; color: #a39e94; cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, color .15s;
+  }
+  .collapse:hover { color: #1b1917; background: rgba(28, 25, 20, 0.07); }
+
+  .body { flex: 1; padding: 8px 14px 12px; display: flex; flex-direction: column; min-height: 0; }
+  .label { font-size: 11px; color: #a39e94; letter-spacing: 2px; }
+  .big { font-size: 26px; font-weight: 700; color: #b07f0a; line-height: 1.25; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .sub { font-size: 12px; color: #57534c; margin-top: 4px; }
+  .sub .cost { color: #9c6f08; font-weight: 600; }
+  .sub b { color: #443e33; font-weight: 600; }
+  hr { border: none; border-top: 1px solid rgba(28, 25, 20, 0.12); margin: 10px 0 8px; }
+  .month { font-size: 12px; color: #57534c; display: flex; justify-content: space-between; align-items: baseline; }
+  .month b { color: #665298; font-weight: 600; }
+  .month .cost { color: #9c6f08; font-weight: 600; }
+  .foot { margin-top: auto; display: flex; gap: 8px; padding-top: 10px; }
+  .foot button {
+    flex: 1; height: 28px; border-radius: 8px; font-size: 12px; cursor: pointer;
+    font-family: inherit; border: 1px solid rgba(28, 25, 20, 0.16);
+    background: none; color: #443e33; transition: background .15s, border-color .15s, box-shadow .15s;
+  }
+  .foot button:hover { background: rgba(28, 25, 20, 0.05); }
+  .foot button.primary {
+    background: linear-gradient(180deg, #ffd166, #f0b429 55%, #e09422);
+    border-color: #d99a1c; color: #453307; font-weight: 600;
+  }
+  .foot button.primary:hover { box-shadow: 0 4px 12px rgba(240, 180, 41, 0.45); }
+
+  /* 收起时只显示图标，展开时只显示面板（面板顶缘=图标顶缘，视觉上从图标原位向下展开） */
+  body.expanded .icon { display: none; }
+  body:not(.expanded) .panel { display: none; }
 </style>
 </head>
 <body>
-  <div class="pill" id="pill" title="拖动移动 · 边缘/角落可缩放 · 双击打开仪表盘">
-    <div class="left">
-      <span class="dot"></span>
-      <span>今日 <b id="tok">…</b> tok</span>
-      <span class="cost" id="cost">¥—</span>
+  <div class="panel">
+    <div class="head">
+      <span class="dot" id="dot"></span>
+      <span class="brand">TOKENUSE</span>
+      <button class="collapse" id="collapse" title="收起">
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 8l4-4 4 4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
     </div>
-    <button id="hide" title="隐藏悬浮条（托盘右键可重新打开）">✕</button>
+    <div class="body">
+      <div class="label">今日 TOKENS</div>
+      <div class="big" id="tok">…</div>
+      <div class="sub"><span class="cost" id="cost">¥—</span> · <b id="req">0</b> 次请求</div>
+      <hr>
+      <div class="month">
+        <span>本月 <b id="mtok">…</b> tok</span>
+        <span class="cost" id="mcost">¥—</span>
+      </div>
+      <div class="foot">
+        <button class="primary" id="dash">打开仪表盘</button>
+        <button id="hide" title="隐藏悬浮图标（托盘右键可重新打开）">隐藏</button>
+      </div>
+    </div>
   </div>
+  <button class="icon" id="icon" title="点击展开用量 · 按住拖动">
+    <img src="../assets/icon.png" alt="TokenUse">
+  </button>
 <script>
   const fmt = n => n >= 1e8 ? (n / 1e8).toFixed(2) + '亿' : n >= 1e4 ? (n / 1e4).toFixed(1) + '万' : String(Math.round(n))
-  const tok = document.getElementById('tok')
-  const cost = document.getElementById('cost')
-  const pill = document.getElementById('pill')
+  const els = ['tok', 'cost', 'req', 'mtok', 'mcost'].reduce((m, id) => (m[id] = document.getElementById(id), m), {})
 
-  function render(s) {
-    tok.textContent = fmt(s.tokens || 0)
-    cost.textContent = s.cost == null ? '¥—' : '¥' + s.cost.toFixed(2) + (s.unknown ? '+' : '')
+  let expanded = false
+  function applyExpanded(v) {
+    expanded = !!v
+    document.body.classList.toggle('expanded', expanded)
+  }
+  if (window.tokenuse) {
+    window.tokenuse.onExpandedChanged(applyExpanded)
+    window.tokenuse.onSnapshot(s => {
+      els.tok.textContent = fmt(s.tokens || 0)
+      els.cost.textContent = s.cost == null ? '¥—' : '¥' + s.cost.toFixed(2) + (s.unknown ? '+' : '')
+      els.req.textContent = String(s.requests ?? 0)
+      els.mtok.textContent = fmt(s.monthTokens || 0)
+      els.mcost.textContent = s.monthCost == null ? '¥—' : '¥' + s.monthCost.toFixed(2)
+    })
   }
 
-  // 拖动/缩放均由主进程绝对定位（每 16ms 读真实光标位置），这里只发开始/结束信号。
-  // 拖动：按住中间区域；缩放：按住四边/四角 6px 热区；双击（两次抬起间隔 <350ms 且位移 ≤8px）打开仪表盘。
-  let lastUp = 0
+  // 点击图标 = 展开/收起（是否生效以主进程回发的 expanded-changed 为准）。
+  // 收起态按住可拖动：拖动由主进程绝对定位（每 16ms 读真实光标位置），位移 >6px 视为拖拽而非点击。
   let downX = 0, downY = 0
-  let mode = 'idle' // idle | drag | resize
+  const icon = document.getElementById('icon')
 
-  const BASE_H = 36
-  function applyScale() {
-    const s = Math.max(0.4, window.innerHeight / BASE_H)
-    pill.style.setProperty('--s', s.toFixed(4))
-  }
-  window.addEventListener('resize', applyScale)
-  applyScale()
-
-  const BAND = 6
-  const RESIZE_CURSORS = {
-    n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize',
-    ne: 'nesw-resize', sw: 'nesw-resize', nw: 'nwse-resize', se: 'nwse-resize',
-  }
-  function edgeFor(x, y) {
-    const w = window.innerWidth, h = window.innerHeight
-    const west = x <= BAND, east = x >= w - BAND
-    const north = y <= BAND, south = y >= h - BAND
-    if (north && east) return 'ne'
-    if (north && west) return 'nw'
-    if (south && east) return 'se'
-    if (south && west) return 'sw'
-    if (north) return 'n'
-    if (south) return 's'
-    if (east) return 'e'
-    if (west) return 'w'
-    return null
-  }
-
-  pill.addEventListener('pointermove', e => {
-    if (mode !== 'idle') return
-    const edge = e.target.closest('button') ? null : edgeFor(e.clientX, e.clientY)
-    pill.style.cursor = edge ? RESIZE_CURSORS[edge] : ''
-  })
-
-  pill.addEventListener('pointerdown', e => {
-    if (e.button !== 0 || e.target.closest('button')) return
+  icon.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return
     downX = e.screenX
     downY = e.screenY
-    pill.setPointerCapture(e.pointerId)
-    pill.classList.add('dragging')
-    const edge = edgeFor(e.clientX, e.clientY)
-    if (edge) {
-      mode = 'resize'
-      window.tokenuse.resizeFloatingStart(edge)
-    } else {
-      mode = 'drag'
+    icon.setPointerCapture(e.pointerId)
+    if (!expanded) {
+      icon.classList.add('dragging')
       window.tokenuse.dragFloatingStart()
     }
   })
-  pill.addEventListener('pointerup', e => {
-    if (e.target.closest('button')) return
-    const wasDrag = mode === 'drag'
-    const wasResize = mode === 'resize'
-    mode = 'idle'
-    pill.classList.remove('dragging')
-    pill.style.cursor = ''
-    if (wasResize) {
-      window.tokenuse.resizeFloatingEnd()
-      return
-    }
-    if (!wasDrag) return
-    window.tokenuse.dragFloatingEnd()
+  icon.addEventListener('pointerup', e => {
     if (e.button !== 0) return
+    const wasDrag = !expanded
+    icon.classList.remove('dragging')
+    if (wasDrag) window.tokenuse.dragFloatingEnd()
     const moved = Math.abs(e.screenX - downX) + Math.abs(e.screenY - downY)
-    if (moved > 8) { lastUp = 0; return } // 是拖拽，不是点击
-    const now = Date.now()
-    if (now - lastUp < 350) {
-      lastUp = 0
-      window.tokenuse.openDashboard()
-    } else {
-      lastUp = now
-    }
+    if (moved > 6) return // 是拖拽，不是点击
+    window.tokenuse.setExpanded(!expanded)
   })
-  pill.addEventListener('pointercancel', () => {
-    if (mode === 'resize') window.tokenuse.resizeFloatingEnd()
-    else if (mode === 'drag') window.tokenuse.dragFloatingEnd()
-    mode = 'idle'
-    pill.classList.remove('dragging')
-    pill.style.cursor = ''
+  icon.addEventListener('pointercancel', () => {
+    icon.classList.remove('dragging')
+    if (!expanded) window.tokenuse.dragFloatingEnd()
   })
 
+  document.getElementById('collapse').addEventListener('click', () => window.tokenuse.setExpanded(false))
+  document.getElementById('dash').addEventListener('click', () => window.tokenuse.openDashboard())
   document.getElementById('hide').addEventListener('click', () => window.tokenuse.hideFloating())
-
-  if (window.tokenuse) window.tokenuse.onSnapshot(render)
 </script>
 </body>
 </html>

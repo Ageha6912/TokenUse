@@ -2,7 +2,7 @@
      width="1200" height="390" viewBox="0 0 1200 390"
      role="img" aria-labelledby="arch-title arch-desc">
   <title id="arch-title">TokenUse 工作原理：数据源 → 采集核心 → 展示层</title>
-  <desc id="arch-desc">系统图：ZCode 的 SQLite 与 Codex 的 JSONL 两种数据源只读接入 TokenUse 核心（3 秒增量拉取、聚合、价格折算），再通过 HTTP + WebSocket 推送给 Web 仪表盘、悬浮数字条和系统托盘；数据源为插件式，可扩展。</desc>
+  <desc id="arch-desc">系统图：ZCode 的 SQLite 与 Codex 的 JSONL 两种数据源只读接入 TokenUse 核心（3 秒增量拉取、聚合、价格折算），再通过 HTTP + WebSocket 推送给 Web 仪表盘、悬浮图标和系统托盘；数据源为插件式，可扩展。</desc>
 
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5"
@@ -80,11 +80,12 @@
           font-size="16" fill="#64748b">127.0.0.1:8510 · 仅本机</text>
 
     <rect x="856" y="160" width="288" height="84" rx="14" fill="#111a2c" stroke="#1e2a44"/>
-    <rect x="880" y="196" width="24" height="12" rx="6" fill="#22d3ee"/>
+    <rect x="881" y="185" width="22" height="22" rx="6" fill="#0b1220" stroke="#22d3ee" stroke-width="2"/>
+    <circle cx="892" cy="196" r="5.5" fill="none" stroke="#22d3ee" stroke-width="2"/>
     <text x="916" y="196" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="20" font-weight="600" fill="#e2e8f0">悬浮数字条</text>
+          font-size="20" font-weight="600" fill="#e2e8f0">悬浮图标</text>
     <text x="916" y="222" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif"
-          font-size="16" fill="#94a3b8">桌面置顶 · 今日用量常显</text>
+          font-size="16" fill="#94a3b8">桌面右上角 · 点击展开用量</text>
 
     <rect x="856" y="260" width="288" height="84" rx="14" fill="#111a2c" stroke="#1e2a44"/>
     <rect x="882" y="292" width="20" height="20" rx="5" fill="none" stroke="#22d3ee" stroke-width="3.5"/>
