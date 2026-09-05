@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://github.com/Ageha6912/TokenUse/releases"><img src="https://img.shields.io/github/v/release/Ageha6912/TokenUse?style=flat-square" alt="最新版本"></a>
   <a href="https://github.com/Ageha6912/TokenUse/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Ageha6912/TokenUse?style=flat-square" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/Windows-10%2B-22d3ee?style=flat-square" alt="Windows 10+">
+  <img src="https://img.shields.io/badge/Windows-10%2B-b07f0a?style=flat-square" alt="Windows 10+">
 </p>
 
 <p align="center">
@@ -45,8 +45,8 @@ TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode �
 
 | 文件 | 说明 |
 | --- | --- |
-| `TokenUse-Setup-*.exe` | 安装版，装完自动启动，含开始菜单快捷方式 |
-| `TokenUse-*.exe` | 便携版，单文件直接运行 |
+| `TokenUse.Setup.*.exe` | 安装版，装完自动启动，含开始菜单快捷方式 |
+| `TokenUse.*.exe` | 便携版，单文件直接运行 |
 
 首次运行如遇 SmartScreen 提示，点「更多信息 → 仍要运行」。需要本机装有 ZCode 或 Codex CLI 才有数据可看。
 
@@ -62,6 +62,12 @@ npm start        # 启动 Electron 应用：仪表盘窗口 + 托盘 + 悬浮图
 
 ```bash
 npm run server
+```
+
+跑全部测试（构建 + 类型检查 + 单元测试，基于 node:test，零额外依赖）：
+
+```bash
+npm test
 ```
 
 <details>
