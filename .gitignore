@@ -5,3 +5,5 @@ data/
 *.log
 release/
 release2/
+.tmp-test/
+.tmp-run/

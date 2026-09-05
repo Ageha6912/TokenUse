@@ -13,5 +13,5 @@
     "resolveJsonModule": true,
     "noUncheckedIndexedAccess": false
   },
-  "include": ["src/**/*.ts", "electron/**/*.ts", "web/**/*.ts"]
+  "include": ["src/**/*.ts", "electron/**/*.ts", "web/**/*.ts", "tests/**/*.ts"]
 }

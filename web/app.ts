@@ -1,6 +1,19 @@
 import * as echarts from 'echarts'
 import qrcode from 'qrcode-generator'
-import type { Snapshot, Totals, WireRecord } from '../src/core/types'
+import type { Snapshot, WireRecord } from '../src/core/types'
+import {
+  costLabel,
+  easeOutCubic,
+  esc,
+  fmtAxisTokens,
+  fmtCost,
+  fmtTime,
+  fmtTokens,
+  pad,
+  shortPath,
+  totalTok,
+  totalsSub,
+} from './format'
 
 // ---------- 局域网访问令牌：页面地址带来的 token 透传给后续 fetch / WebSocket ----------
 const urlToken = new URLSearchParams(location.search).get('token') ?? ''
@@ -26,56 +39,58 @@ let trendMode: 'day' | 'month' = 'day'
 let lastTableSig = ''
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement
-const pad = (n: number) => String(n).padStart(2, '0')
-const COLORS = ['#22d3ee', '#34d399', '#a78bfa', '#f59e0b', '#f472b6', '#60a5fa', '#f87171', '#4ade80', '#fb923c', '#38bdf8']
+// 图表数据系列色板（暖金奶油底）：四色体系分散用色，避免整页单一金色
+const COLORS = ['#665298', '#f0b429', '#d14e66', '#2f9e6e', '#9a8fbf', '#c98a12', '#e0798f', '#67b39a', '#5470c6', '#d9a441']
 
-function esc(s: string): string {
-  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string)
+// ---------- 动效：数字滚动 + 滚动入场（均尊重系统「减少动态效果」） ----------
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+interface TweenState { from: number; to: number; started: number; raf: number }
+const tweens = new WeakMap<HTMLElement, TweenState>()
+
+// 数值变化时从上次值平滑滚到新值；首帧从 0 起滚，做出「电表启动」感
+function tweenNumber(el: HTMLElement, target: number, fmt: (v: number) => string, dur = 650) {
+  const prev = tweens.get(el)
+  if (prev) cancelAnimationFrame(prev.raf)
+  if (reduceMotion.matches || !Number.isFinite(target)) {
+    tweens.set(el, { from: target, to: target, started: 0, raf: 0 })
+    el.textContent = fmt(target)
+    return
+  }
+  const from = prev ? prev.to : 0
+  const state: TweenState = { from, to: target, started: performance.now(), raf: 0 }
+  const step = (now: number) => {
+    const p = Math.min(1, (now - state.started) / dur)
+    el.textContent = fmt(from + (target - from) * easeOutCubic(p))
+    if (p < 1) state.raf = requestAnimationFrame(step)
+  }
+  state.raf = requestAnimationFrame(step)
+  tweens.set(el, state)
 }
 
-function fmtTokens(n: number): string {
-  if (n >= 1e8) return (n / 1e8).toFixed(2) + ' 亿'
-  if (n >= 1e4) return (n / 1e4).toFixed(1) + ' 万'
-  return n.toLocaleString('zh-CN')
-}
-
-// 轴标签用：去尾零、去空格，短文本避免相邻刻度重叠
-function fmtAxisTokens(n: number): string {
-  if (n >= 1e8) return +(n / 1e8).toFixed(2) + '亿'
-  if (n >= 1e4) return +(n / 1e4).toFixed(1) + '万'
-  return n.toLocaleString('zh-CN')
-}
-
-function fmtCost(c: number | null | undefined): string {
-  return c == null ? '—' : '¥' + c.toFixed(2)
-}
-
-function fmtTime(ts: number): string {
-  const d = new Date(ts)
-  const now = new Date()
-  const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
-  const hms = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-  return sameDay ? hms : `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${hms}`
-}
-
-function shortPath(p: string): string {
-  const parts = p.split(/[\\/]+/).filter(Boolean)
-  return parts.length ? parts[parts.length - 1] : p || '—'
-}
-
-const totalTok = (r: Pick<WireRecord, 'inputTokens' | 'outputTokens' | 'cacheReadTokens' | 'cacheWriteTokens'>) =>
-  r.inputTokens + r.outputTokens + r.cacheReadTokens + r.cacheWriteTokens
-
-function totalsSub(t: Totals): string {
-  const parts: string[] = []
-  if (t.planCost != null) parts.push(`套餐内 ¥${t.planCost.toFixed(2)}`)
-  if (t.meteredCost != null) parts.push(`按量 ¥${t.meteredCost.toFixed(2)}`)
-  if (t.costUnknown) parts.push(`${t.costUnknown} 条未定价`)
-  return parts.join(' · ') || '—'
-}
-
-function costLabel(c: number | null, unknown?: number): string {
-  return c == null ? '—' : '¥' + c.toFixed(2) + (unknown ? '+' : '')
+// 区块滚动入场：进入视口时上浮显现，同批次内做小步 stagger
+function setupReveal() {
+  const main = document.querySelector('main')
+  if (!main) return
+  main.classList.add('can-reveal')
+  const sections = [...main.children] as HTMLElement[]
+  if (reduceMotion.matches || !('IntersectionObserver' in window)) {
+    sections.forEach(s => s.classList.add('in'))
+    return
+  }
+  const io = new IntersectionObserver(entries => {
+    let batch = 0
+    for (const en of entries) {
+      if (!en.isIntersecting) continue
+      const el = en.target as HTMLElement
+      el.style.animationDelay = `${Math.min(batch * 70, 280)}ms`
+      el.classList.add('in')
+      io.unobserve(el)
+      batch++
+    }
+  }, { threshold: 0.08 })
+  sections.forEach(s => io.observe(s))
 }
 
 // ---------- 自绘下拉组件 ----------
@@ -230,15 +245,17 @@ function renderCards() {
   if (!snap) return
   const t = snap.today
   const m = snap.month
-  $('c-today-tok').textContent = fmtTokens(t.tokens)
+  tweenNumber($('c-today-tok'), t.tokens, fmtTokens)
   $('c-today-sub').textContent = `输入 ${fmtTokens(t.inputTokens)} · 输出 ${fmtTokens(t.outputTokens)} · 缓存 ${fmtTokens(t.cacheReadTokens + t.cacheWriteTokens)}`
-  $('c-today-cost').textContent = costLabel(t.cost, t.costUnknown)
+  if (t.cost == null) $('c-today-cost').textContent = '—'
+  else tweenNumber($('c-today-cost'), t.cost, v => costLabel(v, t.costUnknown))
   $('c-today-cost-sub').textContent = totalsSub(t)
-  $('c-month-cost').textContent = costLabel(m.cost, m.costUnknown)
+  if (m.cost == null) $('c-month-cost').textContent = '—'
+  else tweenNumber($('c-month-cost'), m.cost, v => costLabel(v, m.costUnknown))
   const lm = snap.monthly[snap.monthly.length - 2]
   $('c-month-sub').innerHTML =
     `本月 ${m.requests} 次请求 · ${snap.projects.length} 个项目<br>上月 ${lm ? fmtTokens(lm.tokens) + ' tok / ' + fmtCost(lm.cost) : '—'}`
-  $('c-req').textContent = String(t.requests)
+  tweenNumber($('c-req'), t.requests, v => String(Math.round(v)))
   $('c-src').textContent = snap.sources.map(s => `${s.id === 'zcode' ? 'ZCode' : 'Codex'} ${s.ok ? '✓' : '✗'} ${s.records}`).join(' · ')
 }
 
@@ -249,24 +266,24 @@ function renderSpark() {
     xAxis: {
       type: 'category',
       data: tl.map(p => p.minute),
-      axisLabel: { interval: 9, color: '#64748b', fontSize: 10 },
-      axisLine: { lineStyle: { color: '#1e2a44' } },
+      axisLabel: { interval: 9, color: '#a39e94', fontSize: 10 },
+      axisLine: { lineStyle: { color: '#ddd6c7' } },
       axisTick: { show: false },
     },
     yAxis: {
       type: 'value',
-      axisLabel: { formatter: (v: number) => fmtAxisTokens(v), color: '#64748b', fontSize: 10, hideOverlap: true },
-      splitLine: { lineStyle: { color: '#16203a' } },
+      axisLabel: { formatter: (v: number) => fmtAxisTokens(v), color: '#a39e94', fontSize: 10, hideOverlap: true },
+      splitLine: { lineStyle: { color: '#eae4d6' } },
     },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#16203a', borderColor: '#1e2a44', textStyle: { color: '#e2e8f0', fontSize: 11 },
+      backgroundColor: '#fffdf8', borderColor: '#e3ddd0', textStyle: { color: '#1b1917', fontSize: 11 }, extraCssText: 'box-shadow: 0 8px 24px rgba(30, 25, 15, .14);',
       formatter: (ps: { name: string; value: number }[]) => `${ps[0].name}<br/>tokens：<b>${fmtTokens(ps[0].value)}</b>`,
     },
     series: [{
       type: 'bar',
       data: tl.map(p => p.tokens),
-      itemStyle: { color: '#22d3ee', opacity: 0.85, borderRadius: [2, 2, 0, 0] },
+      itemStyle: { color: '#f0b429', opacity: 0.85, borderRadius: [2, 2, 0, 0] },
       barCategoryGap: '25%',
       animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
     }],
@@ -281,31 +298,31 @@ function renderDaily() {
   $('trend-title').textContent = day ? '每日趋势（30 天）' : '月度趋势（近 12 个月）'
   charts.daily.setOption({
     grid: { left: 52, right: 52, top: 30, bottom: 24 },
-    legend: { data: ['tokens', '成本'], textStyle: { color: '#94a3b8', fontSize: 11 }, top: 0, itemWidth: 12, itemHeight: 8 },
+    legend: { data: ['tokens', '成本'], textStyle: { color: '#57534c', fontSize: 11 }, top: 0, itemWidth: 12, itemHeight: 8 },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#16203a', borderColor: '#1e2a44', textStyle: { color: '#e2e8f0', fontSize: 11 },
+      backgroundColor: '#fffdf8', borderColor: '#e3ddd0', textStyle: { color: '#1b1917', fontSize: 11 }, extraCssText: 'box-shadow: 0 8px 24px rgba(30, 25, 15, .14);',
       valueFormatter: (v: number) => (typeof v === 'number' ? v.toLocaleString('zh-CN') : String(v)),
     },
     xAxis: {
       type: 'category',
       data: dl.map(p => p.label),
-      axisLabel: { interval: day ? 4 : 0, color: '#64748b', fontSize: 10 },
-      axisLine: { lineStyle: { color: '#1e2a44' } },
+      axisLabel: { interval: day ? 4 : 0, color: '#a39e94', fontSize: 10 },
+      axisLine: { lineStyle: { color: '#ddd6c7' } },
     },
     yAxis: [
-      { type: 'value', axisLabel: { formatter: (v: number) => fmtAxisTokens(v), color: '#64748b', fontSize: 10, hideOverlap: true }, splitLine: { lineStyle: { color: '#16203a' } } },
-      { type: 'value', axisLabel: { formatter: (v: number) => '¥' + v, color: '#64748b', fontSize: 10 }, splitLine: { show: false } },
+      { type: 'value', axisLabel: { formatter: (v: number) => fmtAxisTokens(v), color: '#a39e94', fontSize: 10, hideOverlap: true }, splitLine: { lineStyle: { color: '#eae4d6' } } },
+      { type: 'value', axisLabel: { formatter: (v: number) => '¥' + v, color: '#a39e94', fontSize: 10 }, splitLine: { show: false } },
     ],
     series: [
       {
         name: 'tokens', type: 'bar', data: dl.map(p => p.tokens),
-        itemStyle: { color: '#38bdf8', opacity: 0.8, borderRadius: [2, 2, 0, 0] },
+        itemStyle: { color: '#665298', opacity: 0.85, borderRadius: [2, 2, 0, 0] },
         barCategoryGap: '30%', animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
       },
       {
         name: '成本', type: 'line', yAxisIndex: 1, data: dl.map(p => p.cost),
-        itemStyle: { color: '#fbbf24' }, lineStyle: { color: '#fbbf24', width: 2 },
+        itemStyle: { color: '#d14e66' }, lineStyle: { color: '#d14e66', width: 2 },
         symbolSize: 3, connectNulls: true, animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
       },
     ],
@@ -324,21 +341,21 @@ function renderPie() {
     color: COLORS,
     tooltip: {
       trigger: 'item',
-      backgroundColor: '#16203a', borderColor: '#1e2a44', textStyle: { color: '#e2e8f0', fontSize: 11 },
+      backgroundColor: '#fffdf8', borderColor: '#e3ddd0', textStyle: { color: '#1b1917', fontSize: 11 }, extraCssText: 'box-shadow: 0 8px 24px rgba(30, 25, 15, .14);',
       formatter: (p: { name: string; value: number; percent: number }) => `${p.name}<br/>${fmtTokens(p.value)}（${p.percent}%）`,
     },
     legend: {
       type: 'scroll', orient: 'vertical', right: 0, top: 'middle',
-      textStyle: { color: '#94a3b8', fontSize: 10 }, itemWidth: 10, itemHeight: 10,
-      pageIconColor: '#22d3ee', pageTextStyle: { color: '#64748b' },
+      textStyle: { color: '#57534c', fontSize: 10 }, itemWidth: 10, itemHeight: 10,
+      pageIconColor: '#b07f0a', pageTextStyle: { color: '#a39e94' },
     },
     series: [{
       type: 'pie',
       radius: ['42%', '70%'],
       center: ['36%', '50%'],
       data,
-      label: { color: '#94a3b8', fontSize: 10, formatter: '{d}%' },
-      itemStyle: { borderColor: '#111a2c', borderWidth: 1 },
+      label: { color: '#57534c', fontSize: 10, formatter: '{d}%' },
+      itemStyle: { borderColor: '#f9f7f2', borderWidth: 1 },
       animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
     }],
   })
@@ -352,15 +369,15 @@ function renderProj() {
     xAxis: {
       type: 'value',
       splitNumber: 4,
-      axisLabel: { formatter: (v: number) => fmtAxisTokens(v), color: '#64748b', fontSize: 10, hideOverlap: true },
-      splitLine: { lineStyle: { color: '#16203a' } },
+      axisLabel: { formatter: (v: number) => fmtAxisTokens(v), color: '#a39e94', fontSize: 10, hideOverlap: true },
+      splitLine: { lineStyle: { color: '#eae4d6' } },
     },
     yAxis: {
       type: 'category',
       data: names,
       inverse: true,
       axisLabel: {
-        color: '#94a3b8', fontSize: 10,
+        color: '#57534c', fontSize: 10,
         formatter: (v: string) => (v.length > 14 ? v.slice(0, 13) + '…' : v),
       },
       axisLine: { show: false },
@@ -368,13 +385,13 @@ function renderProj() {
     },
     tooltip: {
       trigger: 'item',
-      backgroundColor: '#16203a', borderColor: '#1e2a44', textStyle: { color: '#e2e8f0', fontSize: 11 },
+      backgroundColor: '#fffdf8', borderColor: '#e3ddd0', textStyle: { color: '#1b1917', fontSize: 11 }, extraCssText: 'box-shadow: 0 8px 24px rgba(30, 25, 15, .14);',
       formatter: (p: { name: string; value: number }) => `${p.name}<br/>${fmtTokens(p.value)} tok`,
     },
     series: [{
       type: 'bar',
       data: bp.map(b => b.tokens),
-      itemStyle: { color: '#34d399', opacity: 0.85, borderRadius: [0, 3, 3, 0] },
+      itemStyle: { color: '#2f9e6e', opacity: 0.9, borderRadius: [0, 3, 3, 0] },
       barMaxWidth: 14,
       animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
     }],
@@ -836,6 +853,7 @@ function initChartsSafe() {
 window.addEventListener('DOMContentLoaded', () => {
   bindEvents()
   initChartsSafe()
+  setupReveal()
   void refresh().then(connectWs)
   connectWs()
   // PWA 应用壳缓存：只在非本机访问（手机端）时注册，不影响桌面场景

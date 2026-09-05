@@ -1,5 +1,5 @@
 // TokenUse PWA 应用壳：只缓存静态壳文件，数据（/api、/ws）永远走网络
-const CACHE = 'tokenuse-shell-v2'
+const CACHE = 'tokenuse-shell-v5'
 const SHELL = ['/', '/style.css', '/app.js', '/icon.png', '/manifest.webmanifest']
 
 self.addEventListener('install', e => {

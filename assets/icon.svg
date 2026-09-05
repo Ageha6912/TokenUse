@@ -1,0 +1,14 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- TokenUse 图标 · 暖金配色版（构图沿用旧版「油表」：环 + 下半圆油面 + 白刻度条） -->
+  <!-- 重新生成 PNG：node_modules\electron\dist\electron.exe scripts/gen-icon.cjs -->
+  <defs>
+    <linearGradient id="bowl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd166"/>
+      <stop offset="1" stop-color="#e09422"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="#161310"/>
+  <circle cx="128" cy="128" r="86" fill="none" stroke="#f0b429" stroke-width="13"/>
+  <path d="M 57 128 A 71 71 0 0 0 199 128 Z" fill="url(#bowl)"/>
+  <rect x="92" y="95" width="72" height="15" rx="5" fill="#f9f7f2"/>
+</svg>

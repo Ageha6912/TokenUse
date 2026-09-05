@@ -12,6 +12,7 @@
     "server": "node dist/server/cli.js",
     "app": "electron .",
     "start": "npm run build && electron .",
+    "test": "npm run build && node scripts/test.mjs",
     "dist": "npm run build && electron-builder --win"
   },
   "build": {
