@@ -470,7 +470,7 @@ const filterSel: Partial<Record<'source' | 'project' | 'model' | 'range', Custom
 function buildFilters() {
   filterSel.source = new CustomSelect(
     $('f-source'),
-    { items: [{ value: '', label: '全部来源' }, { value: 'zcode', label: 'ZCode' }, { value: 'codex', label: 'Codex' }, { value: 'opencode', label: 'OpenCode' }], value: '', onChange: v => { filters.source = v; renderTable() } },
+    { items: [{ value: '', label: '全部来源' }, { value: 'zcode', label: 'ZCode' }, { value: 'codex', label: 'Codex' }, { value: 'opencode', label: 'OpenCode' }, { value: 'cursor', label: 'Cursor' }], value: '', onChange: v => { filters.source = v; renderTable() } },
     '全部来源',
   )
   filterSel.range = new CustomSelect(

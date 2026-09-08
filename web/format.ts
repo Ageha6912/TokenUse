@@ -71,6 +71,7 @@ export function sourceLabel(s: string): string {
   if (s === 'zcode') return 'ZCode'
   if (s === 'codex') return 'Codex'
   if (s === 'opencode') return 'OpenCode'
+  if (s === 'cursor') return 'Cursor'
   return s
 }
 

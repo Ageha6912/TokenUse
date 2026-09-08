@@ -11,6 +11,7 @@ test('sourceLabel 映射三数据源', () => {
   assert.equal(sourceLabel('zcode'), 'ZCode')
   assert.equal(sourceLabel('codex'), 'Codex')
   assert.equal(sourceLabel('opencode'), 'OpenCode')
+  assert.equal(sourceLabel('cursor'), 'Cursor')
   assert.equal(sourceLabel('other'), 'other')
 })
 

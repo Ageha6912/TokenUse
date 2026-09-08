@@ -14,7 +14,7 @@
 
 ## 这是什么
 
-TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode 的本地数据库、解析 Codex 的会话日志、只读读取 OpenCode 的本地 SQLite（`~/.local/share/opencode/opencode.db` 的 message/session 表），每 3 秒增量拉取每一次模型请求，按价格表折算成等效金额，在 **Web 仪表盘 / 悬浮图标 / 系统托盘** 三处常显。
+TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode 的本地数据库、解析 Codex 的会话日志、只读读取 OpenCode 的本地 SQLite，以及 Cursor 的本地 `state.vscdb`，每 3 秒增量拉取用量，按价格表折算成等效金额，在 **Web 仪表盘 / 悬浮图标 / 系统托盘** 三处常显。
 
 数据全程留在本机，不经过任何第三方。金额是「等效成本」——按内置价格表折算，帮你心里有数，请按真实账单核价。
 
@@ -37,7 +37,7 @@ TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode �
 - **只读采集**：不写入、不加锁；ZCode 侧监听 `db-wal` 变化做增量拉取，解析器失败会安全重试
 - **统计口径统一**：总 tokens = 输入 + 输出 + 缓存读 + 缓存写（两家的 input 字段都不含缓存，口径一致）；推理 tokens 已含在输出里，单独展示不重复计
 - **金额可核价**：缓存读按折扣价，按 `provider_id` 区分「套餐内 / 按量」，`builtin:zai-start-plan` 默认套餐内；匹配不到价格的模型金额显示 `—`，tokens 照常统计
-- **数据源是插件**：已支持 ZCode / Codex / OpenCode；要支持 Claude Code 等更多工具，在 `src/sources/` 新增一个解析器即可
+- **数据源是插件**：已支持 ZCode / Codex / OpenCode / Cursor；要支持 Claude Code 等更多工具，在 `src/sources/` 新增一个解析器即可
 
 ## 下载安装
 

@@ -3,6 +3,7 @@ import crypto from 'node:crypto'
 import path from 'node:path'
 import { Pricing } from './pricing.js'
 import { CodexSource } from '../sources/codex.js'
+import { CursorSource } from '../sources/cursor.js'
 import { OpencodeSource } from '../sources/opencode.js'
 import { ZcodeSource } from '../sources/zcode.js'
 import {
@@ -115,7 +116,7 @@ function buckets(map: Map<string, Acc>, cap: number): Bucket[] {
 
 export class Store {
   records = new Map<string, UsageRecord>()
-  sources: SourcePlugin[] = [new ZcodeSource(), new CodexSource(), new OpencodeSource()]
+  sources: SourcePlugin[] = [new ZcodeSource(), new CodexSource(), new OpencodeSource(), new CursorSource()]
   private sorted: UsageRecord[] = []
   private sig = ''
 

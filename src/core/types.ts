@@ -1,6 +1,6 @@
 export interface UsageRecord {
   id: string
-  source: string // 'zcode' | 'codex' | ...
+  source: string // 'zcode' | 'codex' | 'opencode' | 'cursor' | ...
   ts: number // epoch ms，请求完成时间
   project: string // 项目目录
   sessionId: string
