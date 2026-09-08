@@ -66,6 +66,14 @@ export function costLabel(c: number | null, unknown?: number): string {
   return c == null ? '—' : '¥' + c.toFixed(2) + (unknown ? '+' : '')
 }
 
+// 数据源展示名：ZCode / Codex / OpenCode，未知来源原样返回
+export function sourceLabel(s: string): string {
+  if (s === 'zcode') return 'ZCode'
+  if (s === 'codex') return 'Codex'
+  if (s === 'opencode') return 'OpenCode'
+  return s
+}
+
 // 数字滚动动画的缓动：t∈[0,1]，先快后慢
 export function easeOutCubic(t: number): number {
   const x = Math.min(Math.max(t, 0), 1)

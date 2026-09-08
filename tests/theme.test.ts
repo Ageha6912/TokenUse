@@ -37,9 +37,9 @@ test('index.html / manifest 主题色与暖金画布一致', () => {
   }
 })
 
-test('sw.js 缓存版本随前端改动递增（v5）', () => {
+test('sw.js 缓存版本随前端改动递增（v6）', () => {
   const sw = read('web/sw.js')
-  assert.ok(sw.includes('tokenuse-shell-v5'), 'sw.js CACHE 必须 >= v5，否则用户端拿不到新样式')
+  assert.ok(sw.includes('tokenuse-shell-v6'), 'sw.js CACHE 必须 >= v6，否则用户端拿不到新样式')
   // 数据永远走网络，不允许缓存 API/WS
   assert.ok(sw.includes("startsWith('/api')"), 'sw 必须放行 /api')
 })

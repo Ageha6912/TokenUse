@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="TokenUse —— 实时监测 ZCode / Codex CLI 的 token 消耗与等效金额，数据全程留在本机">
+  <img src="./assets/readme/hero.svg" width="100%" alt="TokenUse —— 实时监测 ZCode / Codex CLI / OpenCode 的 token 消耗与等效金额，数据全程留在本机">
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 
 ## 这是什么
 
-TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode 的本地数据库、解析 Codex 的会话日志，每 3 秒增量拉取每一次模型请求，按价格表折算成等效金额，在 **Web 仪表盘 / 悬浮图标 / 系统托盘** 三处常显。
+TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode 的本地数据库、解析 Codex 的会话日志、只读读取 OpenCode 的本地 SQLite（`~/.local/share/opencode/opencode.db` 的 message/session 表），每 3 秒增量拉取每一次模型请求，按价格表折算成等效金额，在 **Web 仪表盘 / 悬浮图标 / 系统托盘** 三处常显。
 
 数据全程留在本机，不经过任何第三方。金额是「等效成本」——按内置价格表折算，帮你心里有数，请按真实账单核价。
 
@@ -31,13 +31,13 @@ TokenUse 是一台跑在你电脑上的 **token 电表**：只读挂载 ZCode �
 ## 工作原理
 
 <p align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="工作原理图：ZCode SQLite 与 Codex JSONL 两种数据源只读接入 TokenUse 核心（3 秒增量拉取、聚合、价格折算），经 WebSocket 推送给 Web 仪表盘、悬浮图标、系统托盘">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="工作原理图：ZCode SQLite、Codex JSONL 与 OpenCode SQLite 三种数据源只读接入 TokenUse 核心（3 秒增量拉取、聚合、价格折算），经 WebSocket 推送给 Web 仪表盘、悬浮图标、系统托盘">
 </p>
 
 - **只读采集**：不写入、不加锁；ZCode 侧监听 `db-wal` 变化做增量拉取，解析器失败会安全重试
 - **统计口径统一**：总 tokens = 输入 + 输出 + 缓存读 + 缓存写（两家的 input 字段都不含缓存，口径一致）；推理 tokens 已含在输出里，单独展示不重复计
 - **金额可核价**：缓存读按折扣价，按 `provider_id` 区分「套餐内 / 按量」，`builtin:zai-start-plan` 默认套餐内；匹配不到价格的模型金额显示 `—`，tokens 照常统计
-- **数据源是插件**：要支持 Claude Code 等工具，在 `src/sources/` 新增一个解析器即可
+- **数据源是插件**：已支持 ZCode / Codex / OpenCode；要支持 Claude Code 等更多工具，在 `src/sources/` 新增一个解析器即可
 
 ## 下载安装
 
@@ -75,7 +75,7 @@ npm test
 
 ```
 src/core/      类型、价格表、聚合器/存储
-src/sources/   ZCode SQLite 与 Codex JSONL 数据源插件
+src/sources/   ZCode SQLite、Codex JSONL 与 OpenCode SQLite 数据源插件
 src/server/    HTTP + WebSocket 实时服务（仅绑定 127.0.0.1）
 electron/      托盘、悬浮图标（右上角小图标，点击展开用量面板）、仪表盘窗口
 web/           仪表盘前端（原生 TS + ECharts）

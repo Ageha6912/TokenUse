@@ -11,6 +11,7 @@ import {
   fmtTokens,
   pad,
   shortPath,
+  sourceLabel,
   totalTok,
   totalsSub,
 } from './format'
@@ -256,7 +257,7 @@ function renderCards() {
   $('c-month-sub').innerHTML =
     `本月 ${m.requests} 次请求 · ${snap.projects.length} 个项目<br>上月 ${lm ? fmtTokens(lm.tokens) + ' tok / ' + fmtCost(lm.cost) : '—'}`
   tweenNumber($('c-req'), t.requests, v => String(Math.round(v)))
-  $('c-src').textContent = snap.sources.map(s => `${s.id === 'zcode' ? 'ZCode' : 'Codex'} ${s.ok ? '✓' : '✗'} ${s.records}`).join(' · ')
+  $('c-src').textContent = snap.sources.map(s => `${sourceLabel(s.id)} ${s.ok ? '✓' : '✗'} ${s.records}`).join(' · ')
 }
 
 function renderSpark() {
@@ -440,7 +441,7 @@ function rowHtml(r: WireRecord): string {
   return `<tr>
     <td class="mono">${fmtTime(r.ts)}</td>
     <td title="${esc(r.project)}">${esc(shortPath(r.project))}</td>
-    <td>${r.source === 'zcode' ? 'ZCode' : r.source === 'codex' ? 'Codex' : esc(r.source)}</td>
+    <td>${sourceLabel(r.source)}</td>
     <td class="mono" title="${esc(r.model)}">${esc(r.model)}</td>
     <td>${esc(r.agent || '—')}</td>
     <td class="num">${fmtTokens(r.inputTokens)}</td>
@@ -469,7 +470,7 @@ const filterSel: Partial<Record<'source' | 'project' | 'model' | 'range', Custom
 function buildFilters() {
   filterSel.source = new CustomSelect(
     $('f-source'),
-    { items: [{ value: '', label: '全部来源' }, { value: 'zcode', label: 'ZCode' }, { value: 'codex', label: 'Codex' }], value: '', onChange: v => { filters.source = v; renderTable() } },
+    { items: [{ value: '', label: '全部来源' }, { value: 'zcode', label: 'ZCode' }, { value: 'codex', label: 'Codex' }, { value: 'opencode', label: 'OpenCode' }], value: '', onChange: v => { filters.source = v; renderTable() } },
     '全部来源',
   )
   filterSel.range = new CustomSelect(
