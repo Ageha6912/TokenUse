@@ -111,7 +111,9 @@ function createFloating() {
 
 function applyFloating() {
   if (!floating || floating.isDestroyed()) return
-  if (handle?.settings.floatingBar) {
+  // 本地服务起不来（如端口被占）时 handle 为 null，不应因此把悬浮图标藏掉
+  const showFloating = handle?.settings.floatingBar ?? true
+  if (showFloating) {
     if (floating.isMinimized()) floating.restore()
     floating.showInactive()
     applyFloatingBounds()
