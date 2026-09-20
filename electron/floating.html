@@ -23,7 +23,7 @@
   .icon.dragging { transform: none; border-color: rgba(176, 127, 10, 0.9); }
   .icon img { width: 32px; height: 32px; border-radius: 8px; pointer-events: none; }
 
-  /* 展开面板：铺满展开后的窗口，顶部右侧 44px 留给图标 */
+  /* 展开面板：铺满展开后的窗口，顶部右侧 44px 留给图标（开合动画由 GSAP 驱动，见脚本） */
   .panel {
     position: absolute; inset: 0;
     background: rgba(249, 247, 242, 0.97);
@@ -33,11 +33,6 @@
     backdrop-filter: blur(10px);
     display: flex; flex-direction: column;
     transform-origin: top right;
-  }
-  body.expanded .panel { animation: unfold .18s cubic-bezier(.22, 1, .36, 1); }
-  @keyframes unfold {
-    from { opacity: 0; transform: translateY(-8px) scale(.96); }
-    to { opacity: 1; transform: none; }
   }
 
   .head { height: 44px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 14px; }
@@ -106,15 +101,50 @@
   <button class="icon" id="icon" title="点击展开用量 · 按住拖动">
     <img src="../assets/icon.png" alt="TokenUse">
   </button>
+<script src="./vendor/gsap.min.js"></script>
 <script>
   const fmt = n => n >= 1e8 ? (n / 1e8).toFixed(2) + '亿' : n >= 1e4 ? (n / 1e4).toFixed(1) + '万' : String(Math.round(n))
   const els = ['tok', 'cost', 'req', 'mtok', 'mcost'].reduce((m, id) => (m[id] = document.getElementById(id), m), {})
 
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+  const panel = document.querySelector('.panel')
   let expanded = false
+  let folding = false
+
+  // 展开：以图标右上角为锚向下展开（原 CSS unfold 的 GSAP 版）；收起回声到达时清理内联样式
   function applyExpanded(v) {
     expanded = !!v
+    folding = false
+    gsap.killTweensOf(panel)
     document.body.classList.toggle('expanded', expanded)
+    if (expanded && !reduceMotion.matches) {
+      // 完成后 kill 退役，杜绝 tween 被残余时钟重绘出中间态
+      const entrance = gsap.fromTo(panel,
+        { autoAlpha: 0, y: -8, scale: .96 },
+        { autoAlpha: 1, y: 0, scale: 1, duration: .18, ease: 'power3.out', transformOrigin: 'top right', clearProps: 'all', overwrite: true, onComplete: () => entrance.kill() })
+    } else {
+      gsap.set(panel, { clearProps: 'all' })
+    }
   }
+
+  // 收起：先播退出折叠（入场 unfold 的镜像），完成后才通知主进程缩窗；
+  // 期间若状态被打破（如失焦先行收起，killTweens 会取消动画），onComplete 不会误发
+  function collapseWithAnimation() {
+    if (!expanded || folding) return
+    if (reduceMotion.matches) {
+      window.tokenuse.setExpanded(false)
+      return
+    }
+    folding = true
+    gsap.to(panel, {
+      autoAlpha: 0, y: -8, scale: .96, duration: .15, ease: 'power2.in', transformOrigin: 'top right',
+      onComplete: () => {
+        folding = false
+        if (expanded) window.tokenuse.setExpanded(false)
+      },
+    })
+  }
+
   if (window.tokenuse) {
     window.tokenuse.onExpandedChanged(applyExpanded)
     window.tokenuse.onSnapshot(s => {
@@ -148,14 +178,18 @@
     if (wasDrag) window.tokenuse.dragFloatingEnd()
     const moved = Math.abs(e.screenX - downX) + Math.abs(e.screenY - downY)
     if (moved > 6) return // 是拖拽，不是点击
-    window.tokenuse.setExpanded(!expanded)
+    if (expanded) {
+      collapseWithAnimation()
+      return
+    }
+    window.tokenuse.setExpanded(true)
   })
   icon.addEventListener('pointercancel', () => {
     icon.classList.remove('dragging')
     if (!expanded) window.tokenuse.dragFloatingEnd()
   })
 
-  document.getElementById('collapse').addEventListener('click', () => window.tokenuse.setExpanded(false))
+  document.getElementById('collapse').addEventListener('click', collapseWithAnimation)
   document.getElementById('dash').addEventListener('click', () => window.tokenuse.openDashboard())
   document.getElementById('hide').addEventListener('click', () => window.tokenuse.hideFloating())
 </script>

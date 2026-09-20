@@ -1,5 +1,6 @@
 import * as echarts from 'echarts'
 import qrcode from 'qrcode-generator'
+import { gsap } from 'gsap'
 import type { Snapshot, WireRecord } from '../src/core/types'
 import {
   costLabel,
@@ -399,12 +400,17 @@ function renderProj() {
   })
 }
 
+// 上一次渲染的最新请求时间：只有真正新落地的行才做入场，旧行保持不动
+let lastMaxRecentTs = 0
+
 function renderRecent() {
   const list = snap!.recent.slice(0, 12)
+  const prevMax = lastMaxRecentTs
+  lastMaxRecentTs = list.reduce((m, r) => Math.max(m, r.ts), 0)
   $('recent').innerHTML =
     list
       .map(
-        r => `<div class="rec">
+        r => `<div class="rec${prevMax > 0 && r.ts > prevMax ? ' rec-new' : ''}">
           <span class="t mono">${fmtTime(r.ts)}</span>
           <span class="m mono" title="${esc(r.model)}">${esc(r.model)}</span>
           <span class="p" title="${esc(r.project)}">${esc(shortPath(r.project))}</span>
@@ -413,6 +419,12 @@ function renderRecent() {
         </div>`,
       )
       .join('') || '<div class="empty">暂无请求</div>'
+  const fresh = document.querySelectorAll('#recent .rec-new')
+  if (fresh.length && !reduceMotion.matches) {
+    // 完成后 kill 退役：杜绝 tween 被时钟残余重绘，且内联样式已 clearProps 清空
+    const entrance = gsap.from(fresh, { y: -6, autoAlpha: 0, duration: 0.22, ease: 'power3.out', stagger: 0.04, clearProps: 'all', overwrite: true, onComplete: () => entrance.kill() })
+  }
+  fresh.forEach(el => el.classList.remove('rec-new'))
 }
 
 function rangeStart(): number {
@@ -470,7 +482,7 @@ const filterSel: Partial<Record<'source' | 'project' | 'model' | 'range', Custom
 function buildFilters() {
   filterSel.source = new CustomSelect(
     $('f-source'),
-    { items: [{ value: '', label: '全部来源' }, { value: 'zcode', label: 'ZCode' }, { value: 'codex', label: 'Codex' }, { value: 'opencode', label: 'OpenCode' }, { value: 'cursor', label: 'Cursor' }], value: '', onChange: v => { filters.source = v; renderTable() } },
+    { items: [{ value: '', label: '全部来源' }, { value: 'zcode', label: 'ZCode' }, { value: 'codex', label: 'Codex' }, { value: 'opencode', label: 'OpenCode' }, { value: 'cursor', label: 'Cursor' }, { value: 'mimocode', label: 'MiMo' }], value: '', onChange: v => { filters.source = v; renderTable() } },
     '全部来源',
   )
   filterSel.range = new CustomSelect(
@@ -704,10 +716,13 @@ async function loadLanSection(retries = 3): Promise<void> {
   renderLanSection()
 }
 
+let lanPanelShown = false
+
 function renderLanSection() {
   if (!lanInfo) {
     // 手机端访问时拿不到该接口（仅限本机），整段隐藏
     $('lan-section').classList.add('hidden')
+    lanPanelShown = false
     return
   }
   $('lan-section').classList.remove('hidden')
@@ -716,6 +731,13 @@ function renderLanSection() {
   const primary = lanPrimaryUrl()
   if (lanInfo.enabled && primary) {
     $('lan-panel').classList.remove('hidden')
+    // 只在「关→开」的那一刻播一次 reveal；loadLanSection 的重试轮询不重复触发
+    if (!lanPanelShown) {
+      lanPanelShown = true
+      if (!reduceMotion.matches) {
+        const reveal = gsap.from($('lan-panel'), { y: 4, autoAlpha: 0, duration: 0.24, ease: 'power2.out', clearProps: 'all', overwrite: true, onComplete: () => reveal.kill() })
+      }
+    }
     const qr = qrcode(0, 'M')
     qr.addData(primary)
     qr.make()
@@ -727,6 +749,7 @@ function renderLanSection() {
       : '手机需与电脑处于同一网络；在外面可用 Tailscale 等组网工具访问同一地址。'
   } else {
     $('lan-panel').classList.add('hidden')
+    lanPanelShown = false
   }
 }
 
@@ -812,6 +835,10 @@ function bindEvents() {
     const curHost = last.querySelector('.sel-host.cur') as HTMLElement | null
     if (curHost) mountCurrencySelect(curHost, 'CNY')
     ;(last.querySelector('.pk') as HTMLInputElement).focus()
+    // 入场与 .removing 退出的 170ms 严格对称；transition 置空避免与行上 CSS transition 叠加
+    if (!reduceMotion.matches) {
+      const entrance = gsap.from(last, { y: -4, autoAlpha: 0, duration: 0.17, ease: 'power2.out', transition: 'none', clearProps: 'all', overwrite: true, onComplete: () => entrance.kill() })
+    }
   })
 
   $('price-rows').addEventListener('click', e => {
