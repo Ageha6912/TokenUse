@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TokenUse — AI 编程 Token 实时电表</title>
+  <meta name="description" content="TokenUse 只读采集 ZCode、Codex CLI、OpenCode、Cursor 的本地数据，每 3 秒增量刷新，把 token 消耗折算成等效金额。数据全程留在本机。">
+  <meta name="theme-color" content="#f1ede5">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <meta property="og:title" content="TokenUse — AI 编程 Token 实时电表">
+  <meta property="og:description" content="只读采集本地用量，每 3 秒刷新，等效金额心里有数。数据不离开你的电脑。">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/dashboard.png">
+  <link rel="stylesheet" href="css/styles.css">
+  <script>
+    document.documentElement.classList.add('js');
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主内容</a>
+
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+    <defs>
+      <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+      <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .67-.95l7-2.5a1 1 0 0 1 .67 0l7 2.5A1 1 0 0 1 20 6z"/></symbol>
+      <symbol id="i-window" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="8" y1="4" x2="8" y2="20"/></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.84Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+      <symbol id="i-github" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+      <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="4"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><polyline points="5 12 10 17 19 7"/></symbol>
+      <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="14"/><line x1="18" y1="14" x2="21" y2="14"/><line x1="14" y1="18" x2="14" y2="21"/><line x1="18" y1="18" x2="21" y2="21"/></symbol>
+    </defs>
+  </svg>
+
+  <header class="site-header" id="top">
+    <div class="nav">
+      <a class="brand" href="#top" aria-label="TokenUse 首页">
+        <img src="assets/icon.png" alt="" width="28" height="28" class="brand-logo">
+        <span>TokenUse</span>
+        <span class="tag">实时 Token 监测</span>
+      </a>
+
+      <nav class="nav-links" id="nav-links" aria-label="主导航">
+        <a href="#features">功能</a>
+        <a href="#workflow">工作流</a>
+        <a href="#proof">证明</a>
+        <a href="#faq">FAQ</a>
+        <a class="btn btn-ghost btn-sm" href="https://github.com/Ageha6912/TokenUse" target="_blank" rel="noopener">
+          <svg class="ic ic-fill" aria-hidden="true"><use href="#i-github"/></svg>
+          GitHub
+        </a>
+        <a class="btn btn-primary btn-sm" href="#download">免费下载</a>
+      </nav>
+
+      <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="打开菜单">
+        <svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-bg" aria-hidden="true">
+        <div class="hero-grid"></div>
+        <div class="hero-aurora"></div>
+        <div class="hero-beam"></div>
+      </div>
+
+      <div class="hero-inner">
+        <p class="kicker reveal">Windows · 本地优先 · MIT</p>
+        <h1 id="hero-title" class="reveal">
+          把 AI 编程的 token 消耗<br>
+          <span class="grad-gold">装进一台电表</span>
+        </h1>
+        <p class="tagline reveal">
+          只读采集 ZCode、Codex CLI、OpenCode、Cursor 的本地数据，每 3 秒增量刷新，
+          折算等效金额。Web 仪表盘 / 悬浮图标 / 系统托盘三处常显，数据不经过任何第三方。
+        </p>
+
+        <div class="hero-actions reveal">
+          <a class="btn btn-primary btn-lg" href="#download">
+            <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>
+            下载 TokenUse
+          </a>
+          <a class="btn btn-ghost btn-lg" href="https://github.com/Ageha6912/TokenUse" target="_blank" rel="noopener">
+            <svg class="ic ic-fill" aria-hidden="true"><use href="#i-github"/></svg>
+            查看源码
+          </a>
+        </div>
+
+        <ul class="hero-meta reveal" aria-label="产品要点">
+          <li><strong>4</strong> 个数据源</li>
+          <li class="dot" aria-hidden="true"></li>
+          <li><strong>3s</strong> 增量刷新</li>
+          <li class="dot" aria-hidden="true"></li>
+          <li><strong>0</strong> 上云上传</li>
+          <li class="dot" aria-hidden="true"></li>
+          <li><strong>MIT</strong> 免费开源</li>
+        </ul>
+      </div>
+
+      <figure class="hero-shot reveal" id="showcase">
+        <div class="shot-frame" role="button" tabindex="0" data-lightbox="assets/dashboard.png" aria-label="放大查看仪表盘截图">
+          <img src="assets/dashboard.png" width="1600" height="1000" fetchpriority="high"
+               alt="TokenUse 仪表盘：今日 Tokens、今日与本月等效成本、实时活动曲线、每日趋势、模型占比、项目消耗与请求明细">
+        </div>
+        <figcaption>真实运行界面 · 暖金奶油主题与本页一致</figcaption>
+      </figure>
+
+      <ul class="hero-pills reveal" aria-label="技术栈">
+        <li class="pill">Electron</li>
+        <li class="pill">TypeScript</li>
+        <li class="pill">ECharts</li>
+        <li class="pill">SQLite / JSONL</li>
+        <li class="pill">PWA</li>
+      </ul>
+    </section>
+
+    <!-- Features -->
+    <section class="section section-wide" id="features" aria-labelledby="features-title">
+      <div class="section-head reveal">
+        <p class="kicker">核心能力</p>
+        <h2 id="features-title">盯住消耗，而不是猜账单</h2>
+        <p class="lead">TokenUse 不写入你的工具数据，只把已经在本机的用量算清楚、看实时。</p>
+      </div>
+
+      <div class="bento">
+        <article class="bcard b-large reveal">
+          <div class="bcard-icon"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg></div>
+          <h3>四源统一采集</h3>
+          <p>ZCode SQLite、Codex 会话 JSONL、OpenCode SQLite、Cursor <code>state.vscdb</code> 插件化接入。缺一个源不影响其他源继续工作。</p>
+          <ul class="chip-row" aria-label="支持的数据源">
+            <li>ZCode</li>
+            <li>Codex CLI</li>
+            <li>OpenCode</li>
+            <li>Cursor</li>
+          </ul>
+        </article>
+
+        <article class="bcard reveal">
+          <div class="bcard-icon"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg></div>
+          <h3>3 秒增量刷新</h3>
+          <p>默认每 3 秒检查本地文件变化，只读增量数据，实时曲线与请求明细同步更新。</p>
+        </article>
+
+        <article class="bcard reveal">
+          <div class="bcard-icon"><svg class="ic" aria-hidden="true"><use href="#i-tag"/></svg></div>
+          <h3>等效金额折算</h3>
+          <p>内置价格表按每 1M token 计价，缓存读走折扣；可覆盖自定义价，也可从 LiteLLM 价格库更新。</p>
+        </article>
+
+        <article class="bcard reveal">
+          <div class="bcard-icon"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></div>
+          <h3>数据留在本机</h3>
+          <p>只读、不写入、不加锁。默认仅监听 <code>127.0.0.1</code>；开启共享后才绑定局域网并强制令牌鉴权。</p>
+        </article>
+
+        <article class="bcard reveal">
+          <div class="bcard-icon"><svg class="ic" aria-hidden="true"><use href="#i-window"/></svg></div>
+          <h3>悬浮图标 + 托盘</h3>
+          <p>桌面右上角 44×44 常驻图标，点击展开今日/本月用量；系统托盘同步显示状态。</p>
+        </article>
+
+        <article class="bcard b-wide reveal">
+          <div class="bcard-icon"><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg></div>
+          <div>
+            <h3>手机扫码实时查看</h3>
+            <p>同一 Wi-Fi 下开启「手机访问」，扫二维码即达同一份数据。iOS 可添加到主屏幕作独立窗口；令牌泄露可一键重置。外网可搭配 Tailscale 组私有网。</p>
+          </div>
+          <div class="wide-visual" aria-hidden="true">
+            <svg class="ic wide-qr"><use href="#i-qr"/></svg>
+            <span>PC 采集 · 手机查看</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Workflow -->
+    <section class="section" id="workflow" aria-labelledby="workflow-title">
+      <div class="section-head reveal">
+        <p class="kicker">工作流</p>
+        <h2 id="workflow-title">装上就能用，三步看懂消耗</h2>
+      </div>
+
+      <ol class="steps reveal">
+        <li class="step">
+          <span class="step-num">01</span>
+          <h3>下载并启动</h3>
+          <p>安装版或便携版任选。首次运行如遇 SmartScreen，点「更多信息 → 仍要运行」。</p>
+        </li>
+        <li class="step">
+          <span class="step-num">02</span>
+          <h3>自动对接本地数据</h3>
+          <p>应用只读你本机已有工具的数据路径；未安装或未产生用量的源会显示未就绪，不阻塞其他源。</p>
+        </li>
+        <li class="step">
+          <span class="step-num">03</span>
+          <h3>在三处随时看</h3>
+          <p>Web 仪表盘、悬浮图标、系统托盘；需要时扫码把同一份数据带到手机。</p>
+        </li>
+      </ol>
+
+      <figure class="arch-card reveal">
+        <img src="assets/architecture.svg" width="960" height="420" loading="lazy"
+             alt="工作原理：ZCode、Codex、OpenCode 与 Cursor 只读接入 TokenUse 核心，经 WebSocket 推送给 Web 仪表盘、悬浮图标与系统托盘">
+        <figcaption>只读采集 → 增量轮询 → 统一口径聚合 → 实时推送展示</figcaption>
+      </figure>
+    </section>
+
+    <!-- Proof / data -->
+    <section class="section section-wide" id="proof" aria-labelledby="proof-title">
+      <div class="section-head reveal">
+        <p class="kicker">数据证明</p>
+        <h2 id="proof-title">用产品事实说话</h2>
+        <p class="lead">这里不堆砌虚构评价。下面是可核验的项目事实与边界说明。</p>
+      </div>
+
+      <div class="proof-grid">
+        <article class="proof-card reveal">
+          <p class="proof-value">4</p>
+          <p class="proof-label">已接数据源</p>
+          <p class="proof-desc">ZCode · Codex CLI · OpenCode · Cursor</p>
+        </article>
+        <article class="proof-card reveal">
+          <p class="proof-value">3s</p>
+          <p class="proof-label">默认轮询间隔</p>
+          <p class="proof-desc">可在设置中按秒调整</p>
+        </article>
+        <article class="proof-card reveal">
+          <p class="proof-value">2000</p>
+          <p class="proof-label">请求明细缓存</p>
+          <p class="proof-desc">聚合数字仍基于全量统计</p>
+        </article>
+        <article class="proof-card reveal">
+          <p class="proof-value">MIT</p>
+          <p class="proof-label">开源协议</p>
+          <p class="proof-desc">源码公开，可自由审计与二次开发</p>
+        </article>
+      </div>
+
+      <div class="honest-note reveal">
+        <h3>关于「等效金额」</h3>
+        <p>
+          TokenUse 按内置/自定义价格表折算，帮助你心里有数；它<strong>不是</strong>厂商账单。
+          匹配不到价格的模型会统计 tokens，金额显示 <code>—</code>。
+          Cursor 本地库字段随版本变化，可能缺少完整输入/输出拆分，请视为近似统计。
+        </p>
+      </div>
+    </section>
+
+    <!-- Download / CTA -->
+    <section class="section section-wide" id="download" aria-labelledby="download-title">
+      <div class="dl-panel reveal">
+        <p class="kicker">立即开始</p>
+        <h2 id="download-title">免费下载，本地运行</h2>
+        <p class="lead">安装版含开始菜单快捷方式；便携版单文件直接跑。需要本机对应工具已产生数据，仪表盘才会显示用量。</p>
+
+        <div class="dl-actions">
+          <a class="btn btn-primary btn-lg" href="https://github.com/Ageha6912/TokenUse/releases" target="_blank" rel="noopener">
+            <svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>
+            获取最新 Release
+          </a>
+          <a class="btn btn-ghost btn-lg" href="https://github.com/Ageha6912/TokenUse" target="_blank" rel="noopener">
+            <svg class="ic ic-fill" aria-hidden="true"><use href="#i-github"/></svg>
+            GitHub 仓库
+          </a>
+        </div>
+
+        <ul class="dl-formats">
+          <li>
+            <code>TokenUse.Setup.*.exe</code>
+            <span>安装版</span>
+          </li>
+          <li>
+            <code>TokenUse.*.exe</code>
+            <span>便携版</span>
+          </li>
+        </ul>
+        <p class="dl-meta">Windows 10+ · MIT License · 完全免费</p>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq" aria-labelledby="faq-title">
+      <div class="section-head reveal">
+        <p class="kicker">FAQ</p>
+        <h2 id="faq-title">常见问题</h2>
+      </div>
+
+      <div class="faq-list">
+        <details class="faq-item reveal">
+          <summary>TokenUse 会上传我的代码或会话内容吗？</summary>
+          <div class="faq-body">
+            <p>不会。它只读取本机工具已写下的用量数据文件，聚合后在本地提供 HTTP/WebSocket 服务。默认只监听本机回环地址。</p>
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>等效金额能当真实账单用吗？</summary>
+          <div class="faq-body">
+            <p>不能。金额按价格表折算，缓存读有折扣，套餐内与按量可区分标注；请以厂商真实账单为准核价。</p>
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>只用 Cursor 可以吗？</summary>
+          <div class="faq-body">
+            <p>可以。数据源相互独立；只使用 Cursor 时只统计 Cursor 可读字段，其他源会显示未就绪。</p>
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>手机在外面也能看吗？</summary>
+          <div class="faq-body">
+            <p>局域网扫码即可。若要出门在外查看，可让 PC 与手机都加入 Tailscale 等私有网，访问同一服务地址；令牌鉴权逻辑不变。</p>
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>支持 macOS / Linux 吗？</summary>
+          <div class="faq-body">
+            <p>当前发布面向 Windows 10+。代码为 TypeScript/Electron，跨平台改造属于后续方向，欢迎关注仓库动态。</p>
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>如何二次开发或贡献？</summary>
+          <div class="faq-body">
+            <p>克隆仓库后 <code>npm install</code>，<code>npm start</code> 构建并启动开发模式；新增数据源可在 <code>src/sources/</code> 添加解析器。协议为 MIT。</p>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="assets/icon.png" alt="" width="22" height="22">
+        <span>TokenUse</span>
+      </div>
+      <p class="footer-desc">本地优先的 AI 编程 token 电表。</p>
+      <nav class="footer-links" aria-label="页脚链接">
+        <a href="https://github.com/Ageha6912/TokenUse" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/Ageha6912/TokenUse/releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/Ageha6912/TokenUse/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+        <a href="https://github.com/Ageha6912/TokenUse/blob/main/README.md" target="_blank" rel="noopener">文档</a>
+      </nav>
+      <p class="footer-copy">© <span id="year">2026</span> Ageha6912 · MIT</p>
+    </div>
+  </footer>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lightbox-close" type="button" aria-label="关闭预览">
+      <svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>
+    </button>
+    <img src="" alt="">
+  </div>
+
+  <script src="js/vendor/gsap.min.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>
