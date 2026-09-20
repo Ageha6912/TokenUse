@@ -9,6 +9,14 @@ const DEFAULT_PRICES: PriceMap = {
   'deepseek-v4-flash': { input: 1, output: 4, cacheRead: 0.2, currency: 'CNY', note: '初始快照价，请按账单核对' },
   'deepseek-v4-pro': { input: 2, output: 8, cacheRead: 0.4, currency: 'CNY', note: '初始快照价，请按账单核对' },
   'gpt-5.6-luna': { input: 1.25, output: 10, cacheRead: 0.125, currency: 'USD', note: '初始快照价，请按账单核对' },
+  // Xiaomi MiMo（账号侧常见 modelID）；套餐内时金额意义有限，仅作占位参考
+  'mimo-pro': { input: 1, output: 4, cacheRead: 0.2, currency: 'CNY', note: 'MiMo 占位价，请按账号账单核对' },
+  'mimo-v2.5': { input: 1, output: 4, cacheRead: 0.2, currency: 'CNY', note: 'MiMo 占位价，请按账号账单核对' },
+  'mimo-x-flash-preview': { input: 0.5, output: 2, cacheRead: 0.1, currency: 'CNY', note: 'MiMo 占位价，请按账号账单核对' },
+  'mimo-x-pro-preview': { input: 1, output: 4, cacheRead: 0.2, currency: 'CNY', note: 'MiMo 占位价，请按账号账单核对' },
+  // Cursor Auto 会动态路由模型，以下为偏保守的混合等效价，并非 Cursor 官方固定单价。
+  auto: { input: 2, output: 10, cacheRead: 0.2, currency: 'USD', note: 'Cursor Auto 混合估算价，请按实际账单核对' },
+  default: { input: 2, output: 10, cacheRead: 0.2, currency: 'USD', note: 'Cursor Auto 旧记录混合估算价，请按实际账单核对' },
 }
 
 const PRICES_NOTE =
@@ -45,6 +53,21 @@ export class Pricing {
     if (!fs.existsSync(file)) {
       fs.mkdirSync(this.dataDir, { recursive: true })
       fs.writeFileSync(file, JSON.stringify({ _note: PRICES_NOTE, ...DEFAULT_PRICES }, null, 2), 'utf8')
+    } else {
+      // 已安装版本的 prices.json 不会因新增内置价格而自动更新，这里做一次非破坏性迁移。
+      try {
+        const current = JSON.parse(fs.readFileSync(file, 'utf8')) as PriceMap & { _note?: string }
+        let changed = false
+        for (const key of ['auto', 'default', 'mimo-pro', 'mimo-v2.5', 'mimo-x-flash-preview', 'mimo-x-pro-preview'] as const) {
+          if (!current[key] && DEFAULT_PRICES[key]) {
+            current[key] = DEFAULT_PRICES[key]
+            changed = true
+          }
+        }
+        if (changed) fs.writeFileSync(file, JSON.stringify(current, null, 2), 'utf8')
+      } catch {
+        /* reload() 会回退到空覆盖表 */
+      }
     }
     this.reload()
   }

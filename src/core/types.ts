@@ -1,6 +1,6 @@
 export interface UsageRecord {
   id: string
-  source: string // 'zcode' | 'codex' | 'opencode' | 'cursor' | ...
+  source: string // 'zcode' | 'codex' | 'opencode' | 'cursor' | 'mimocode' | ...
   ts: number // epoch ms，请求完成时间
   project: string // 项目目录
   sessionId: string
@@ -45,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   providers: {
     'builtin:zai-start-plan': 'plan',
     'builtin:zai': 'metered',
+    xiaomi: 'plan',
   },
   floatingBar: true,
   autostart: false,
