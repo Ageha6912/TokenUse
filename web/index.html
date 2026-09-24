@@ -36,6 +36,28 @@
     </div>
   </section>
 
+  <section class="panel">
+    <h2>日活分布 <span class="sub2">近 14 天 · 每小时 tokens</span><span class="legend-ramp" aria-hidden="true">低<i></i><i></i><i></i><i></i><i></i>高</span></h2>
+    <div class="heat-stats" id="heat-stats"></div>
+    <div id="heat-empty" class="empty hidden">暂无记录</div>
+    <div id="heat" class="chart"></div>
+  </section>
+
+  <section class="panel">
+    <h2>单次请求大小分布 <span class="sub2" id="dist-count"></span></h2>
+    <div class="dist-grid">
+      <div id="dist-rows" class="dist-rows"></div>
+      <div id="dist" class="chart"></div>
+    </div>
+    <div class="hint">每模型一条分布形状（各自归一，横轴对数）：竖线 = 该模型 50%，灰点 = 90%，虚线 = 全局 50%；数值列按共同宽度对比（深 = 50% · 浅 = 90%）。</div>
+  </section>
+
+  <section class="panel">
+    <h2>0-24 时分布 · 按模型 <span class="sub2">近 30 天 · 各模型重叠面积</span></h2>
+    <div id="hourly-empty" class="empty hidden">暂无记录</div>
+    <div id="hourly" class="chart"></div>
+  </section>
+
   <section class="charts-row">
     <div class="panel">
       <h2><span id="trend-title">每日趋势（30 天）</span><span class="seg" id="trend-seg"><button class="seg-btn active" data-mode="day" type="button">日</button><button class="seg-btn" data-mode="month" type="button">月</button></span></h2>

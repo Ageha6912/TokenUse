@@ -2,6 +2,7 @@ import * as echarts from 'echarts'
 import qrcode from 'qrcode-generator'
 import { gsap } from 'gsap'
 import type { Snapshot, WireRecord } from '../src/core/types'
+import { binCenters, densityCurve, heatSegmentShares, trimHeatRows } from './distribution'
 import {
   costLabel,
   easeOutCubic,
@@ -43,6 +44,17 @@ let lastTableSig = ''
 const $ = (id: string) => document.getElementById(id) as HTMLElement
 // 图表数据系列色板（暖金奶油底）：四色体系分散用色，避免整页单一金色
 const COLORS = ['#665298', '#f0b429', '#d14e66', '#2f9e6e', '#9a8fbf', '#c98a12', '#e0798f', '#67b39a', '#5470c6', '#d9a441']
+// 脊线图行高：与 style.css 的 .dist-row height 保持一致
+const DIST_ROW_H = 44
+const fmtCount = (n: number) => n.toLocaleString('zh-CN')
+
+// 惰性建图：heat / dist / hourly 的容器高度随数据行数变化，首次渲染时才初始化
+function ensureChart(id: string): echarts.ECharts | null {
+  const el = $(id)
+  if (!el.clientHeight) return null
+  if (!charts[id]) charts[id] = echarts.init(el)
+  return charts[id]
+}
 
 // ---------- 动效：数字滚动 + 滚动入场（均尊重系统「减少动态效果」） ----------
 
@@ -427,6 +439,220 @@ function renderRecent() {
   fresh.forEach(el => el.classList.remove('rec-new'))
 }
 
+// ---------- 日活分布（日×小时热力图 + 时段占比） ----------
+
+const HEAT_RAMP = ['#f3ecd9', '#e9d49a', '#d9b35c', '#b8860e', '#7a5a06']
+
+function renderHeat() {
+  const el = $('heat')
+  const rows = trimHeatRows(snap!.hourHeatmap)
+  $('heat-stats').innerHTML = heatSegmentShares(rows)
+    .map(s => `<span class="heat-stat">${s.label}<b>${s.pct == null ? '—' : s.pct.toFixed(1) + '%'}</b></span>`)
+    .join('')
+  // 空态用兄弟节点切换，绝不清空图表容器（会连带销毁 ECharts 已挂载的 canvas）
+  $('heat-empty').classList.toggle('hidden', rows.length > 0)
+  el.classList.toggle('hidden', rows.length === 0)
+  if (!rows.length) return
+  const height = rows.length * 20 + 26
+  if (el.style.height !== height + 'px') {
+    el.style.height = height + 'px'
+    charts.heat?.resize()
+  }
+  const chart = ensureChart('heat')
+  if (!chart) return
+  const data: [number, number, number][] = []
+  let max = 0
+  rows.forEach((row, y) => {
+    row.hours.forEach((v, h) => {
+      if (v > 0) {
+        data.push([h, y, v])
+        if (v > max) max = v
+      }
+    })
+  })
+  chart.setOption({
+    grid: { left: 44, right: 10, top: 4, bottom: 20 },
+    xAxis: {
+      type: 'category', data: Array.from({ length: 24 }, (_, h) => String(h)),
+      axisLabel: { color: '#a39e94', fontSize: 10, interval: 0, hideOverlap: true },
+      axisLine: { lineStyle: { color: '#ddd6c7' } }, axisTick: { show: false },
+      splitArea: { show: false },
+    },
+    yAxis: {
+      // 类目轴 0 号在底部：rows 升序 → 最新日期自然落在顶部（对齐参考稿）
+      type: 'category', data: rows.map(r => r.label),
+      axisLabel: { color: '#a39e94', fontSize: 10 },
+      axisLine: { show: false }, axisTick: { show: false },
+    },
+    visualMap: {
+      type: 'continuous', min: 0, max: Math.max(max, 1), show: false,
+      inRange: { color: HEAT_RAMP },
+    },
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#fffdf8', borderColor: '#e3ddd0', textStyle: { color: '#1b1917', fontSize: 11 }, extraCssText: 'box-shadow: 0 8px 24px rgba(30, 25, 15, .14);',
+      formatter: (p: { value: [number, number, number] }) => `${rows[p.value[1]]?.label} ${p.value[0]}时 · ${fmtTokens(p.value[2])}`,
+    },
+    series: [{
+      type: 'heatmap', data,
+      itemStyle: { borderRadius: 2, borderWidth: 2, borderColor: '#f9f7f2' },
+      emphasis: { itemStyle: { borderColor: 'rgba(176, 127, 10, .55)' } },
+      animation: true, animationDuration: 380, animationDurationUpdate: 300,
+    }],
+  })
+}
+
+// ---------- 单次请求大小分布（脊线） ----------
+
+function renderDist() {
+  const rs = snap!.reqSize
+  const models = rs.models
+  const rowsEl = $('dist-rows')
+  const el = $('dist')
+  $('dist-count').textContent = models.length ? `TOP ${models.length} 模型 · 共 ${fmtCount(rs.overall.count)} 次` : ''
+  if (!models.length) {
+    rowsEl.innerHTML = '<div class="empty">暂无记录</div>'
+    el.classList.add('hidden')
+    return
+  }
+  el.classList.remove('hidden')
+  const maxP90 = Math.max(...models.map(m => m.p90), 1)
+  rowsEl.innerHTML = models
+    .map(
+      m => `<div class="dist-row" title="${esc(m.model)}">
+        <span class="m">${esc(m.model)}</span>
+        <span class="c">${fmtCount(m.count)}</span>
+        <span class="p">${fmtTokens(m.p50)}</span>
+        <span class="p">${fmtTokens(m.p90)}</span>
+        <span class="bar"><i class="b90" style="width:${((m.p90 / maxP90) * 100).toFixed(1)}%"></i><i class="b50" style="width:${((m.p50 / maxP90) * 100).toFixed(1)}%"></i></span>
+      </div>`,
+    )
+    .join('')
+  const height = models.length * DIST_ROW_H + 24
+  if (el.style.height !== height + 'px') {
+    el.style.height = height + 'px'
+    charts.dist?.resize()
+  }
+  const chart = ensureChart('dist')
+  if (!chart) return
+  const centers = binCenters(rs.binLo, rs.binHi, rs.binCount)
+  const N = models.length
+  const series: Record<string, unknown>[] = []
+  // 底行先画、顶行后画：高密度行的填充自然盖住下方行的越界尾部
+  for (let i = N - 1; i >= 0; i--) {
+    const m = models[i]
+    // 值轴自下而上增长：显示第 i 行（0=顶）的条带 = 值域 [(N-1-i)*H, (N-i)*H]，
+    // 曲线从条带底边（基线）向上隆起；配合首尾锚点，面积填充只占本行条带
+    const baseline = (N - 1 - i) * DIST_ROW_H
+    const dens = densityCurve(m.bins)
+    const color = COLORS[i % COLORS.length]
+    const markLineData: unknown[] = [
+      [
+        { coord: [m.p50, baseline] },
+        { coord: [m.p50, baseline + DIST_ROW_H * 0.85] },
+      ],
+    ]
+    if (i === 0 && rs.overall.p50 > 0) {
+      markLineData.push([
+        { coord: [rs.overall.p50, 0], lineStyle: { color: '#a39e94', width: 1, type: 'dashed', opacity: 0.8 } },
+        { coord: [rs.overall.p50, N * DIST_ROW_H] },
+      ])
+    }
+    // 首尾锚在行基线上：面积填充只占本行条带，不会灌到图表底部盖住下方行
+    const band: [number, number][] = [
+      [rs.binLo, baseline],
+      ...centers.map((x, j) => [x, baseline + dens[j] * DIST_ROW_H * 0.88] as [number, number]),
+      [rs.binHi, baseline],
+    ]
+    series.push({
+      name: m.model,
+      type: 'line',
+      smooth: 0.35,
+      showSymbol: false,
+      data: band,
+      lineStyle: { width: 1, color },
+      itemStyle: { color },
+      areaStyle: { color, opacity: 0.5 },
+      animationDurationUpdate: 300,
+      markLine: {
+        silent: true, symbol: 'none', animation: false,
+        label: { show: false },
+        lineStyle: { color: '#443e33', width: 1.2, type: 'solid', opacity: 0.85 },
+        data: markLineData,
+      },
+      markPoint: {
+        silent: true, animation: false,
+        symbol: 'circle', symbolSize: 4,
+        itemStyle: { color: '#8d8677', opacity: 0.7 },
+        label: { show: false },
+        data: [{ coord: [m.p90, baseline + DIST_ROW_H * 0.32] }],
+      },
+      tooltip: {
+        backgroundColor: '#fffdf8', borderColor: '#e3ddd0', textStyle: { color: '#1b1917', fontSize: 11 }, extraCssText: 'box-shadow: 0 8px 24px rgba(30, 25, 15, .14);',
+        formatter: (p: { value: [number, number] }) => `${esc(m.model)}<br/>${fmtTokens(p.value[0])}`,
+      },
+    })
+  }
+  chart.setOption({
+    grid: { left: 8, right: 14, top: 0, bottom: 24 },
+    xAxis: {
+      type: 'log', min: rs.binLo, max: rs.binHi,
+      axisLabel: { color: '#a39e94', fontSize: 10, formatter: (v: number) => fmtAxisTokens(v) },
+      axisLine: { show: false }, axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: { type: 'value', min: 0, max: N * DIST_ROW_H, show: false },
+    series,
+  })
+}
+
+// ---------- 0-24 时分布 × 模型 ----------
+
+function renderHourly() {
+  const el = $('hourly')
+  const rows = snap!.hourByModel
+  $('hourly-empty').classList.toggle('hidden', rows.length > 0)
+  el.classList.toggle('hidden', rows.length === 0)
+  if (!rows.length) return
+  const chart = ensureChart('hourly')
+  if (!chart) return
+  chart.setOption({
+    grid: { left: 46, right: 12, top: 30, bottom: 22 },
+    legend: {
+      type: 'scroll', top: 0, right: 0,
+      textStyle: { color: '#57534c', fontSize: 10 }, itemWidth: 10, itemHeight: 8,
+      pageIconColor: '#b07f0a', pageTextStyle: { color: '#a39e94' },
+    },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fffdf8', borderColor: '#e3ddd0', textStyle: { color: '#1b1917', fontSize: 11 }, extraCssText: 'box-shadow: 0 8px 24px rgba(30, 25, 15, .14);',
+      valueFormatter: (v: number) => (typeof v === 'number' ? v.toLocaleString('zh-CN') : String(v)),
+    },
+    xAxis: {
+      type: 'category', data: Array.from({ length: 24 }, (_, h) => String(h)),
+      axisLabel: { color: '#a39e94', fontSize: 10, formatter: (v: string) => `${v}时`, hideOverlap: true },
+      axisLine: { lineStyle: { color: '#ddd6c7' } }, axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { formatter: (v: number) => fmtAxisTokens(v), color: '#a39e94', fontSize: 10, hideOverlap: true },
+      splitLine: { lineStyle: { color: '#eae4d6' } },
+    },
+    series: rows.map((r, i) => ({
+      name: r.model,
+      type: 'line',
+      smooth: 0.5,
+      showSymbol: false,
+      data: r.hours,
+      lineStyle: { width: 1 },
+      areaStyle: { opacity: 0.4 },
+      color: r.model === '其他' ? '#a39e94' : COLORS[i % COLORS.length],
+      emphasis: { focus: 'series' },
+      animationDuration: 380, animationDurationUpdate: 300,
+    })),
+  })
+}
+
 function rangeStart(): number {
   const now = new Date()
   if (filters.range === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
@@ -529,6 +755,9 @@ function render() {
   renderCards()
   populateFilters()
   renderSpark()
+  renderHeat()
+  renderDist()
+  renderHourly()
   renderDaily()
   renderPie()
   renderProj()

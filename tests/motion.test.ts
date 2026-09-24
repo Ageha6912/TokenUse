@@ -67,5 +67,31 @@ test('GSAP 产物随包分发：vendor 文件有效、打包清单与依赖声�
 
 test('PWA 缓存版本已随 app.js 变更递增', () => {
   const sw = read('web/sw.js')
-  assert.ok(sw.includes("'tokenuse-shell-v8'"), 'app.js 内容已变更，PWA 缓存版本必须递增（当前应为 v8）')
+  assert.ok(sw.includes("'tokenuse-shell-v9'"), 'app.js 内容已变更，PWA 缓存版本必须递增（当前应为 v9）')
+})
+
+test('分布三板块：容器、纯函数模块与渲染接线齐全', () => {
+  // 服务端聚合：Snapshot 三字段 + store 组装
+  const types = read('src/core/types.ts')
+  for (const field of ['hourHeatmap', 'reqSize', 'hourByModel']) {
+    assert.ok(types.includes(field), `Snapshot 缺少聚合字段 ${field}`)
+  }
+  const store = read('src/core/store.ts')
+  for (const key of ['heatAgg', 'distAgg', 'hourModelAgg']) {
+    assert.ok(store.includes(key), `store 缺少聚合器 ${key}`)
+  }
+  // 前端：面板容器 + 渲染函数 + 纯函数模块
+  const html = read('web/index.html')
+  for (const id of ['id="heat"', 'id="dist"', 'id="hourly"', 'id="heat-stats"', 'id="dist-rows"']) {
+    assert.ok(html.includes(id), `index.html 缺少分布板块容器 ${id}`)
+  }
+  const app = read('web/app.ts')
+  for (const fn of ['renderHeat', 'renderDist', 'renderHourly']) {
+    assert.ok(app.includes(`function ${fn}`), `app.ts 缺少 ${fn}`)
+    assert.ok(new RegExp(`^\\s+${fn}\\(\\)$`, 'm').test(app), `render() 未调用 ${fn}`)
+  }
+  assert.ok(app.includes("from './distribution'"), 'app.ts 未引入 distribution 纯函数模块')
+  // 脊线行高与 CSS 对齐（两处必须成对改）
+  assert.ok(app.includes('DIST_ROW_H = 44'), 'app.ts 脊线行高常量缺失')
+  assert.ok(/\.dist-row \{\s*\n\s*height: 44px/.test(read('web/style.css')), '.dist-row 高度应与 DIST_ROW_H 一致')
 })

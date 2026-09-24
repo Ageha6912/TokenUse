@@ -155,6 +155,37 @@ main.can-reveal #cards.in > .card:nth-child(4) { animation-delay: .22s; }
 .live-grid { display: grid; grid-template-columns: 1fr 380px; gap: 14px; }
 .chart { width: 100%; height: 230px; }
 .chart-sm { height: 175px; }
+
+/* ---------- 日活分布 ---------- */
+.legend-ramp { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; color: var(--muted2); font-size: 10px; font-weight: 400; }
+.legend-ramp i { width: 14px; height: 8px; border-radius: 2px; display: inline-block; }
+.legend-ramp i:nth-child(1) { background: #f3ecd9; }
+.legend-ramp i:nth-child(2) { background: #e9d49a; }
+.legend-ramp i:nth-child(3) { background: #d9b35c; }
+.legend-ramp i:nth-child(4) { background: #b8860e; }
+.legend-ramp i:nth-child(5) { background: #7a5a06; }
+.heat-stats { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 2px 0 8px; }
+.heat-stat { display: flex; align-items: baseline; gap: 7px; font-size: 11px; color: var(--muted); }
+.heat-stat b { font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
+#heat { min-height: 120px; }
+
+/* ---------- 单次请求大小分布（脊线） ---------- */
+.dist-grid { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 16px; align-items: end; }
+.dist-rows { display: flex; flex-direction: column; /* 底部留出脊线图 x 轴标签条的高度，保证行与条带对齐 */ padding-bottom: 24px; }
+.dist-row {
+  height: 44px; display: grid;
+  grid-template-columns: minmax(90px, 1.2fr) 52px 64px 64px minmax(48px, 1fr);
+  align-items: center; gap: 8px; font-size: 11px;
+  border-bottom: 1px dashed var(--hairline);
+}
+.dist-row:last-child { border-bottom: none; }
+.dist-row .m { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dist-row .c { color: var(--muted2); text-align: right; font-variant-numeric: tabular-nums; }
+.dist-row .p { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.dist-row .bar { position: relative; height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; }
+.dist-row .bar .b90 { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: #ecd9a4; }
+.dist-row .bar .b50 { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--accent); }
+#dist { min-height: 120px; }
 .recent { border-left: 1px solid var(--border); padding-left: 14px; overflow-y: auto; max-height: 205px; }
 .recent .rec {
   display: flex; align-items: baseline; gap: 8px;
@@ -284,6 +315,8 @@ tbody tr td:first-child { color: var(--muted2); }
   .charts-row { grid-template-columns: 1fr; }
   .live-grid { grid-template-columns: 1fr; }
   .recent { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 10px; }
+  .dist-grid { grid-template-columns: 1fr; align-items: stretch; }
+  .dist-row { grid-template-columns: minmax(80px, 1.4fr) 52px 58px 58px 1fr; }
 }
 
 /* ---------- 手机窄屏 ---------- */

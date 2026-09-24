@@ -101,6 +101,18 @@ export interface Snapshot {
   models: string[]
   providers: { id: string; billing: Billing }[]
   sources: { id: string; ok: boolean; records: number; lastPollAt: number | null }[]
+  // 日×小时热力图：近 14 天（day 升序，已裁掉头部全零日；hours 为 24 槽 tokens）
+  hourHeatmap: { day: string; label: string; hours: number[] }[]
+  // 单次请求大小分布：全量历史，按请求数 top 8 模型；bins 为对数直方（binLo..binHi 等宽 log10 槽）
+  reqSize: {
+    binLo: number
+    binHi: number
+    binCount: number
+    overall: { count: number; p50: number }
+    models: { model: string; count: number; p50: number; p90: number; bins: number[] }[]
+  }
+  // 0-24 时分布 × 模型：近 30 天，tokens 降序，末位为「其他」
+  hourByModel: { model: string; hours: number[] }[]
 }
 
 export interface SourcePollResult {

@@ -165,6 +165,10 @@ export class Store {
     const todayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
     const monthStart = new Date(d.getFullYear(), d.getMonth(), 1).getTime()
 
+    // 新板块窗口：热力图近 14 天；小时×模型近 30 天；大小分布看全量历史
+    const heatStart = todayStart - 13 * 86_400_000
+    const hourModelStart = todayStart - 29 * 86_400_000
+
     const today = newAcc()
     const month = newAcc()
     const all = newAcc()
@@ -178,6 +182,9 @@ export class Store {
     const projects = new Set<string>()
     const models = new Set<string>()
     const providers = new Set<string>()
+    const heatAgg = new Map<string, number[]>()
+    const distAgg = new Map<string, number[]>()
+    const hourModelAgg = new Map<string, number[]>()
 
     for (const r of this.sorted) {
       const t = totalTokens(r)
@@ -197,21 +204,35 @@ export class Store {
         accAdd(pa, r, t, cost, billing)
         projAgg.set(r.project, pa)
       }
-      const dk = dateKey(r.ts)
+      const rd = new Date(r.ts)
+      const dk = `${rd.getFullYear()}-${pad(rd.getMonth() + 1)}-${pad(rd.getDate())}`
       const da = dailyAgg.get(dk) ?? { tokens: 0, cost: 0, unknown: 0 }
       da.tokens += t
       if (cost == null) da.unknown++
       else da.cost += cost
       dailyAgg.set(dk, da)
       const mk = dk.slice(0, 7)
-      const ma = monthlyAgg.get(mk) ?? { tokens: 0, cost: 0, unknown: 0 }
-      ma.tokens += t
-      if (cost == null) ma.unknown++
-      else ma.cost += cost
-      monthlyAgg.set(mk, ma)
+      const ma2 = monthlyAgg.get(mk) ?? { tokens: 0, cost: 0, unknown: 0 }
+      ma2.tokens += t
+      if (cost == null) ma2.unknown++
+      else ma2.cost += cost
+      monthlyAgg.set(mk, ma2)
       if (r.ts >= (curMin - 59) * minuteMs) {
         const idx = Math.floor(r.ts / minuteMs)
         tlAgg.set(idx, (tlAgg.get(idx) ?? 0) + t)
+      }
+      if (r.ts >= heatStart) {
+        const slots = heatAgg.get(dk) ?? new Array<number>(24).fill(0)
+        slots[rd.getHours()] += t
+        heatAgg.set(dk, slots)
+      }
+      const samples = distAgg.get(r.model) ?? []
+      samples.push(t)
+      distAgg.set(r.model, samples)
+      if (r.ts >= hourModelStart) {
+        const slots = hourModelAgg.get(r.model) ?? new Array<number>(24).fill(0)
+        slots[rd.getHours()] += t
+        hourModelAgg.set(r.model, slots)
       }
     }
 
@@ -249,6 +270,58 @@ export class Store {
     const counts = new Map<string, number>()
     for (const r of this.records.values()) counts.set(r.source, (counts.get(r.source) ?? 0) + 1)
 
+    // ---------- 日×小时热力图（近 14 天，裁掉头部全零日） ----------
+    const hourHeatmap: Snapshot['hourHeatmap'] = []
+    for (let i = 13; i >= 0; i--) {
+      const dayTs = todayStart - i * 86_400_000
+      const rd = new Date(dayTs)
+      const day = `${rd.getFullYear()}-${pad(rd.getMonth() + 1)}-${pad(rd.getDate())}`
+      const hours = heatAgg.get(day) ?? new Array<number>(24).fill(0)
+      hourHeatmap.push({ day, label: `${rd.getMonth() + 1}-${rd.getDate()}`, hours })
+    }
+    while (hourHeatmap.length && hourHeatmap[0].hours.every(v => v === 0)) hourHeatmap.shift()
+
+    // ---------- 单次请求大小分布（全量；top 8 按请求数） ----------
+    const BIN_COUNT = 28
+    const BIN_LO = 100 // 10^2
+    const BIN_HI = 3e7 // ≈10^7.48
+    const span = Math.log10(BIN_HI) - Math.log10(BIN_LO)
+    const binOf = (v: number) =>
+      Math.min(BIN_COUNT - 1, Math.max(0, Math.floor((Math.log10(Math.max(1, v)) - Math.log10(BIN_LO)) / span * BIN_COUNT)))
+    const percentile = (sorted: number[], p: number) => sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))]
+    const allSamples: number[] = []
+    const distModels: Snapshot['reqSize']['models'] = []
+    for (const [model, samples] of distAgg) {
+      for (const v of samples) allSamples.push(v)
+    }
+    allSamples.sort((a, b) => a - b)
+    for (const [model, samples] of [...distAgg.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 8)) {
+      const sorted = [...samples].sort((a, b) => a - b)
+      const bins = new Array<number>(BIN_COUNT).fill(0)
+      for (const v of samples) bins[binOf(v)]++
+      distModels.push({ model, count: samples.length, p50: percentile(sorted, 0.5), p90: percentile(sorted, 0.9), bins })
+    }
+    const reqSize: Snapshot['reqSize'] = {
+      binLo: BIN_LO,
+      binHi: BIN_HI,
+      binCount: BIN_COUNT,
+      overall: { count: allSamples.length, p50: allSamples.length ? percentile(allSamples, 0.5) : 0 },
+      models: distModels,
+    }
+
+    // ---------- 0-24 时 × 模型（近 30 天，tokens 降序，末位「其他」） ----------
+    const hourModels: { model: string; hours: number[]; total: number }[] = []
+    for (const [model, hours] of hourModelAgg) {
+      hourModels.push({ model, hours, total: hours.reduce((s, v) => s + v, 0) })
+    }
+    hourModels.sort((a, b) => b.total - a.total)
+    const hourByModel: Snapshot['hourByModel'] = hourModels.slice(0, 8).map(({ model, hours }) => ({ model, hours }))
+    if (hourModels.length > 8) {
+      const rest = new Array<number>(24).fill(0)
+      for (const { hours } of hourModels.slice(8)) for (let h = 0; h < 24; h++) rest[h] += hours[h]
+      hourByModel.push({ model: '其他', hours: rest })
+    }
+
     return {
       updatedAt: now,
       today: toTotals(today),
@@ -272,6 +345,9 @@ export class Store {
         records: counts.get(s.id) ?? 0,
         lastPollAt: s.lastPollAt,
       })),
+      hourHeatmap,
+      reqSize,
+      hourByModel,
     }
   }
 }
