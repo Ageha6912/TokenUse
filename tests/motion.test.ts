@@ -67,7 +67,16 @@ test('GSAP 产物随包分发：vendor 文件有效、打包清单与依赖声�
 
 test('PWA 缓存版本已随 app.js 变更递增', () => {
   const sw = read('web/sw.js')
-  assert.ok(sw.includes("'tokenuse-shell-v9'"), 'app.js 内容已变更，PWA 缓存版本必须递增（当前应为 v9）')
+  assert.ok(sw.includes("'tokenuse-shell-v10'"), 'app.js 内容已变更，PWA 缓存版本必须递增（当前应为 v10）')
+})
+
+test('模型占比：标签内嵌环带且小扇区不标注（窄屏防重叠）', () => {
+  const app = read('web/app.ts')
+  // 外部引导线标签在窄面板上互相重叠、还会压到右侧图例 → 必须内嵌
+  assert.ok(/label: \{ position: 'inside'/.test(app), '饼图百分比标签应内嵌环带')
+  assert.ok(app.includes('labelLine: { show: false }'), '外部引导线应关闭')
+  assert.ok(app.includes('label: { show: pct >= 8 }'), '小扇区（<8%）不应显示标签')
+  assert.ok(app.includes('pct.toFixed(1)'), '标签百分比应保留一位小数（{d}% 两位小数过挤）')
 })
 
 test('分布三板块：容器、纯函数模块与渲染接线齐全', () => {

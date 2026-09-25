@@ -351,6 +351,7 @@ function renderPie() {
   if (rest.length) {
     data.push({ name: '其他', value: rest.reduce((s, b) => s + b.tokens, 0) })
   }
+  const total = data.reduce((s, d) => s + d.value, 0)
   charts.pie.setOption({
     color: COLORS,
     tooltip: {
@@ -367,8 +368,12 @@ function renderPie() {
       type: 'pie',
       radius: ['42%', '70%'],
       center: ['36%', '50%'],
-      data,
-      label: { color: '#57534c', fontSize: 10, formatter: '{d}%' },
+      // 百分比内嵌环带、只标注 ≥8% 的扇区：外部引导线在窄面板上会互相重叠、还会压到图例（笔记本原生屏宽度）
+      data: data.map(d => {
+        const pct = total > 0 ? (d.value / total) * 100 : 0
+        return { ...d, label: { show: pct >= 8 }, labelLine: { show: false } }
+      }),
+      label: { position: 'inside', color: '#fffdf8', fontSize: 10, formatter: (p: { percent: number }) => p.percent.toFixed(1) + '%' },
       itemStyle: { borderColor: '#f9f7f2', borderWidth: 1 },
       animation: true, animationDuration: 380, animationEasing: 'cubicOut', animationDurationUpdate: 300, animationEasingUpdate: 'cubicOut',
     }],
